@@ -1,0 +1,15 @@
+main.c - funzioni per l'avvio di objstore
+	creazione socket
+main.h - header per main.c
+dispatcher.c - codice dispatcher
+fs.c - memorizzazione dei dati (oggetti) all'interno dell'fs ospitante
+fs.h - header per fs.c
+worker.c - worker thread
+objstore.c - interfaccia per objstore (quello che diverrà libobjstore)
+objstore.h - header per objstore.c
+client.c - codice gestione client
+client.h - header client
+--------------------------------------------------------------------------
+CLIENT: Il client avrà sicuramente un clientid, una cartella per conservare
+		i propri dati, e un socket attraverso il quale comunicare
+		con il server
