@@ -10,18 +10,30 @@
 	#include <fcntl.h>
 	#include <errno.h>
 	#include <signal.h>
-	#include <bits/types/sigset_t.h>
+	#include <linkedlist.h>
+
 
 	extern sigset_t nosignal;	
+	extern volatile sig_atomic_t OS_RUNNING;
+	
+	typedef struct client_t {
+		char *name;
+		int socketfd;
+		pthread_t worker;
+	} client_t;
 
-	#define discardsignals(nosignal) \
+	extern linkedlist_elem* client_list;
+
+	#define SOCKET_ADDR "/tmp/objstore.sock"
+	#define SOMAXCONN 128
+
+	#define discardsignals(sgn) \
 		{ \
-			int err = sigfillset(&nosignal); \
+			int err = sigfillset(&sgn); \
 			if (err < 0) fprintf(stderr, "Error emptying sigset\n"); \
 		} \
 
-
-
+		
 	#define OS_MAIN_H
-
+	
 #endif

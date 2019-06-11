@@ -1,4 +1,6 @@
-#include <linkedlist.h>
+#include <main.h>
+#include <errormacros.h>
+
 
 const size_t linkedlist_elem_size = sizeof(linkedlist_elem);
 
@@ -15,34 +17,36 @@ linkedlist_elem *linkedlist_new(linkedlist_elem *list, void *data) {
 	return new;
 }
 
-linkedlist_elem *linkedlist_search(linkedlist_elem *list, int (*fun)(const void*)) {
+linkedlist_elem *linkedlist_search(linkedlist_elem *list, int (*fun)(const void*, void*), void *arg) {
 	linkedlist_elem *curr = list;
 	while (curr != NULL) {
-		if (fun((const void*)(curr->ptr))) return curr;
+		if (fun((const void*)(curr->ptr), (void*)arg)) return curr;
 		curr = curr->next;
 	}
 	return NULL;
 }
 
-void linkedlist_iter(linkedlist_elem *list, void (*fun)(const void*)) {
+void linkedlist_iter(linkedlist_elem *list, void (*fun)(const void*, void*), void *arg) {
 	linkedlist_elem *curr = list;
 	while (curr != NULL) {
-		fun((const void*)(curr->ptr));
+		fun((const void*)(curr->ptr), arg);
 		curr = curr->next;
 	}
 }
 
 linkedlist_elem *linkedlist_remove(linkedlist_elem *list, linkedlist_elem *elem) {
 	linkedlist_elem *curr = list;
-	while (curr != NULL) {
-		if (curr == elem) {
-			if (curr->prev) (curr->prev)->next = elem->next;
-			else list = curr->next;
-			if (elem->next) (elem->next)->prev = curr;
-			curr = curr->next;
+	while (curr != NULL && elem != NULL) {
+		if (curr == elem) { //0: prev ok, next = NULL
+			if (elem->prev) {
+				(elem->prev)->next = elem->next;	
+				if (elem->next) (elem->next)->prev = elem->prev;
+			} else list = elem->next;	//removal of head element
 			free(elem->ptr);
 			free(elem);
-		} else curr = curr->next;
+			return list;
+		}
+		curr = curr->next;
 	}
 	return list;	//failure
 }
