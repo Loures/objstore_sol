@@ -1,4 +1,4 @@
-#include <main.h>
+#include <server.h>
 #include <linkedlist.h>
 #include <worker.h>
 #include <errormacros.h>
@@ -9,11 +9,10 @@
 
 pthread_t dispatcher_thread;
 int serverfd;
-struct sockaddr_un socket_address;
 
 void dispatcher_cleanup() {
     int err = close(serverfd);
-    if (err < 0) err_close(SOCKET_ADDR);
+    if (err < 0) err_close(serverfd);
     err = unlink(SOCKET_ADDR);
     if (err < 0) err_unlink(SOCKET_ADDR); 
     #ifdef DEBUG
@@ -21,30 +20,26 @@ void dispatcher_cleanup() {
     #endif
 }
 
+
 void *dispatch(void *arg) {
     fd_set fdset;
-    serverfd = socket(AF_UNIX, SOCK_STREAM, 0);
-    if (serverfd < 0) err_socket();
-    #ifdef DEBUG 
-        fprintf(stderr, "DEBUG: Server socket created with fd %d\n", serverfd); 
-    #endif
-    memset(&socket_address, 0, sizeof(struct sockaddr_un));
-    socket_address.sun_family = AF_UNIX;
-    strncpy(socket_address.sun_path, SOCKET_ADDR, sizeof(socket_address.sun_path) - 1); 
-    int err = bind(serverfd, (const struct sockaddr*)&socket_address, sizeof(socket_address));
-    if (err < 0) err_socket();
-    #ifdef DEBUG 
-        fprintf(stderr, "DEBUG: Server socket bound to %s\n", socket_address.sun_path); 
-    #endif
-    listen(serverfd, SOMAXCONN);
     FD_ZERO(&fdset);
     FD_SET(serverfd, &fdset);
-    struct timespec timeout = (struct timespec){0, 10000000};
+    struct timespec timeout = (struct timespec){0, 20000000};   //poll timeout (e.g poll every 20ms)
     while(OS_RUNNING) {
-        int err = pselect(serverfd + 1, &fdset, NULL, NULL, &timeout, NULL);
+        int err = pselect(serverfd + 1, &fdset, NULL, NULL, &timeout, NULL);    //poll socket file descriptor
         if (err < 0) err_select();
-        printf("\t%d\n", err);
-        if (FD_ISSET(serverfd, &fdset)) printf("INCOMING CONNECTION\n");
+        if (FD_ISSET(serverfd, &fdset)) {   //checks if we have a pending connection and creates client shiet;
+            int client_fd = accept(serverfd, NULL, NULL);
+            client_t *new_client = (client_t*)malloc(sizeof(client_t));
+            memset(new_client, 0, sizeof(client_t));
+            new_client->name = NULL;
+            new_client->socketfd = client_fd;
+            client_list = linkedlist_new(client_list, (void*)new_client);
+            pthread_create(&(new_client->worker), NULL, &workerdummy, (void*)new_client);
+        }
+        FD_ZERO(&fdset);
+        FD_SET(serverfd, &fdset);
     }
     dispatcher_cleanup();
     pthread_exit(NULL);

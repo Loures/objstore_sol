@@ -1,4 +1,4 @@
-#include <main.h>
+#include <server.h>
 #include <signal.h>
 #include <linkedlist.h>
 #include <errormacros.h>
@@ -39,14 +39,15 @@ int main(int argc, char *argv[]) {
 		printf("\n");
 	}
 	linkedlist_free(list);
-	int cfd = socket(AF_UNIX, SOCK_STREAM, 0);
 	struct sockaddr_un addr;
 	memset(&addr, 0, sizeof(struct sockaddr_un));
 	addr.sun_family = AF_UNIX;
 	strncpy(addr.sun_path, SOCKET_ADDR, sizeof(addr.sun_path) - 1);
-	int rfd = connect(cfd, (struct sockaddr*)&addr, sizeof(addr));
-	if (rfd < 0) err_socket();
-	if (rfd == 0) printf("connection succesfull\n");
-	sleep(50);
+	for (int i = 0; i < 10; i++) {
+		int cfd = socket(AF_UNIX, SOCK_STREAM, 0);
+		int rfd = connect(cfd, (struct sockaddr*)&addr, sizeof(addr));
+		if (rfd < 0) err_socket();
+		nanosleep(&((struct timespec){0, 300000000}), NULL);
+	}
 	return 0;
 }

@@ -1,4 +1,4 @@
-#include <main.h>
+#include <server.h>
 #include <errormacros.h>
 
 
@@ -52,6 +52,7 @@ linkedlist_elem *linkedlist_remove(linkedlist_elem *list, linkedlist_elem *elem)
 }
 
 void linkedlist_free(linkedlist_elem *list) {	//WARNING: USING linkedlist WITH STACK ELEMENTS FUCK THINGS UP, DON'T DO IT
+	if (list == NULL) return;
 	if (list->next != NULL) linkedlist_free(list->next);
 	free(list->ptr);
 	free(list);

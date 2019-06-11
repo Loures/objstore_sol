@@ -3,22 +3,22 @@
 	#define err_open(filename) \
 		{char buf[128]; \
 		strerror_r(errno, buf, 128); \
-	    fprintf(stderr, "Error opening file \'%s\': %s\n", filename, buf);} \
+	    fprintf(stderr, "Error opening file \'%s\': %s\n", fd, buf);} \
 
-	#define err_write(filename) \
+	#define err_write(fd) \
 		{char buf[128]; \
 		strerror_r(errno, buf, 128); \
-	    fprintf(stderr, "Error writing to file \'%s\': %s\n", filename, buf);} \
+	    fprintf(stderr, "Error writing to file descriptor %d: %s\n", fd, buf);} \
 
-	#define err_read(filename) \
+	#define err_read(fd) \
 		{char buf[128]; \
 		strerror_r(errno, buf, 128); \
-	    fprintf(stderr, "Error reading from file \'%s\': %s\n", filename, buf);} \
+	    fprintf(stderr, "Error reading from file descriptor %d: %s\n", fd, buf);} \
 	
-	#define err_close(filename) \
+	#define err_close(fd) \
 		{char buf[128]; \
 		strerror_r(errno, buf, 128); \
-	    fprintf(stderr, "Error closing file '%s\': %s\n", filename, buf);} \
+	    fprintf(stderr, "Error closing file descriptor %d: %s\n", fd, buf);} \
 
 	#define err_malloc(size) \
 		{char buf[128]; \

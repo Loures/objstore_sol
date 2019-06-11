@@ -6,7 +6,9 @@ CPPFLAGS= -I. \
 LDLIBS=-lpthread
 CFLAGS=	-std=c99 \
 		-Wall
-		
+
+default_target: server
+
 linkedlist.o: linkedlist.c linkedlist.h
 	$(CC) $(CFLAGS) $(LDLIBS) $(CPPFLAGS) -c $< -o $@
 
@@ -19,8 +21,13 @@ dispatcher.o: dispatcher.c dispatcher.h
 worker.o: worker.c worker.h
 	$(CC) $(CFLAGS) $(LDLIBS) $(CPPFLAGS) -c $< -o $@
 
-main.o: main.c main.h
+server.o: server.c server.h
 	$(CC) $(CFLAGS) $(LDLIBS) $(CPPFLAGS) -c $< -o $@
 
-main: main.o worker.o dispatcher.o linkedlist.o
-		$(CC) $(CFLAGS) $(LDLIBS) $(CPPFLAGS) linkedlist.o dispatcher.o worker.o $< -o $@
+server: server.o worker.o dispatcher.o linkedlist.o
+	$(CC) $(CFLAGS) $(LDLIBS) $(CPPFLAGS) linkedlist.o dispatcher.o worker.o $< -o $@
+
+clean:
+	rm ./*.o ./server
+
+.PHONY: clean

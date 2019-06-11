@@ -13,8 +13,9 @@
 	#include <linkedlist.h>
 
 
-	extern sigset_t nosignal;	
 	extern volatile sig_atomic_t OS_RUNNING;
+	extern int serverfd;
+	
 	
 	typedef struct client_t {
 		char *name;
@@ -33,6 +34,7 @@
 			if (err < 0) fprintf(stderr, "Error emptying sigset\n"); \
 		} \
 
+	#define setnonblocking(fd) fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK)
 		
 	#define OS_MAIN_H
 	
