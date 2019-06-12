@@ -3,7 +3,7 @@
 	#define err_open(filename) \
 		{char buf[128]; \
 		strerror_r(errno, buf, 128); \
-	    fprintf(stderr, "Error opening file \'%s\': %s\n", fd, buf);} \
+	    fprintf(stderr, "Error opening file \'%s\': %s\n", filename, buf);} \
 
 	#define err_write(fd) \
 		{char buf[128]; \

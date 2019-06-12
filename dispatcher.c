@@ -31,20 +31,28 @@ void *dispatch(void *arg) {
         if (err < 0) err_select(os_serverfd);
         if (FD_ISSET(os_serverfd, &fdset)) {   //checks if we have a pending connection and creates client shiet;
             int client_fd = accept(os_serverfd, NULL, NULL);
+            setnonblocking(client_fd);
+            
+            pthread_mutex_lock(&client_list_mtx);
             client_t *new_client = (client_t*)malloc(sizeof(client_t));
-            memset(new_client, 0, sizeof(client_t));
+            
+            memset(new_client, 0, sizeof(client_t));    //zero client_t structure
             new_client->name = NULL;
             new_client->socketfd = client_fd;
+            pthread_t *wk = &(new_client->worker);
             client_list = linkedlist_new(client_list, (void*)new_client);
-            worker_num++;
-            pthread_create(&(new_client->worker), NULL, &worker_loop, (void*)new_client);
+            worker_num++;   //add new thread worker
+            pthread_mutex_unlock(&client_list_mtx);
+            pthread_create(wk, NULL, &worker_loop, (void*)new_client);
         }
         FD_ZERO(&fdset);
         FD_SET(os_serverfd, &fdset);
     }
+    
     pthread_mutex_lock(&client_list_mtx);
     while (worker_num > 0) pthread_cond_wait(&worker_num_cond, &client_list_mtx);
     dispatcher_cleanup();
     pthread_mutex_unlock(&client_list_mtx);
+    
     pthread_exit(NULL);
 }

@@ -4,6 +4,9 @@
 #include <errormacros.h>
 #include <dispatcher.h>
 
+#define SK_RMAX_PATH "/proc/sys/net/core/rmem_max"
+#define SK_WMAX_PATH "/proc/sys/net/core/rmem_max"
+
 sigset_t nosignal;
 linkedlist_elem *client_list = NULL;
 
@@ -55,9 +58,23 @@ static void _handler(int sig) {
 	}
 }
 
-void iterator(const void *ptr, void *arg) {
-	printf("\t%p\n", ptr);
+static void sk_wrmaxes() {
+    int fd_rmem = open(SK_RMAX_PATH, O_RDONLY);
+    if (fd_rmem < 0) err_open(SK_RMAX_PATH);
+    int fd_wmem = open(SK_WMAX_PATH, O_RDONLY);
+    if (fd_wmem < 0) err_open(SK_WMAX_PATH);
+    char rmem[sizeof(ssize_t)];
+    ssize_t rlen = read(fd_rmem, rmem, sizeof(ssize_t));
+    close(fd_rmem);
+    char wmem[sizeof(ssize_t)];
+    ssize_t wlen = read(fd_wmem, wmem, sizeof(ssize_t));
+    close(fd_wmem);
+	rmem[rlen - 1] = '\0';	//for some unknown reason the file ends with \n
+	wmem[wlen - 1] = '\0';
+	fprintf(stderr, "DEBUG: Max read size from socket is %s bytes\n", rmem);
+	fprintf(stderr, "DEBUG: Max write size to socket is %s bytes\n", wmem);
 }
+
 
 int main(int argc, char *argv[]) {
 	int err = sigfillset(&nosignal);
@@ -71,6 +88,7 @@ int main(int argc, char *argv[]) {
 
     #ifdef DEBUG 
         fprintf(stderr, "DEBUG: Server socket created with fd %d\n", os_serverfd); 
+		sk_wrmaxes();
     #endif
 
     struct sockaddr_un socket_address;
