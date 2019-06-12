@@ -15,7 +15,7 @@ os_client.h - header client
 --------------------------------------------------------------------------
 CLIENT: Il client avrà sicuramente un clientid, una cartella per conservare
 		i propri dati, e un socket attraverso il quale comunicare
-		con il server.
+		con il os_server.
 		typedef struct client_t {
 			size_t id;
 			pthread_t worker;

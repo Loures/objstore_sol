@@ -14,7 +14,10 @@
 
 
 	extern volatile sig_atomic_t OS_RUNNING;
-	extern int serverfd;
+	extern int os_serverfd;
+	extern volatile int worker_num;
+	extern pthread_mutex_t client_list_mtx;
+	extern pthread_cond_t worker_num_cond;
 	
 	
 	typedef struct client_t {

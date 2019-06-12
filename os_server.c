@@ -1,4 +1,4 @@
-#include <server.h>
+#include <os_server.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <errormacros.h>
@@ -10,7 +10,10 @@ linkedlist_elem *client_list = NULL;
 volatile sig_atomic_t OS_RUNNING = 1;
 static sigset_t sigmask;
 static int waited_sig = 0;
-int serverfd;
+int os_serverfd;
+volatile int worker_num = 0;
+pthread_mutex_t client_list_mtx = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t worker_num_cond = PTHREAD_COND_INITIALIZER;
 
 static void stats_iterator(const void *ptr, void *arg) {
 	client_t *client = (client_t*)ptr;
@@ -25,15 +28,16 @@ static void _handler(int sig) {
 			#ifdef DEBUG
 				fprintf(stderr, "DEBUG: Received SIGTERM\n");
 			#endif
-			linkedlist_free(client_list);
+			//linkedlist_free(client_list);
 			OS_RUNNING = 0;
+			
 			break;
 
 		case SIGINT:
 			#ifdef DEBUG
 				fprintf(stderr, "DEBUG: Received SIGINT\n");
 			#endif
-			linkedlist_free(client_list);
+			//linkedlist_free(client_list);
 			OS_RUNNING = 0;
 			break;
 		
@@ -51,18 +55,22 @@ static void _handler(int sig) {
 	}
 }
 
+void iterator(const void *ptr, void *arg) {
+	printf("\t%p\n", ptr);
+}
+
 int main(int argc, char *argv[]) {
-	int err = sigfillset(&nosignal); \
+	int err = sigfillset(&nosignal);
 	if (err < 0) fprintf(stderr, "Error filling sigset\n");
 	pthread_sigmask(SIG_BLOCK, &nosignal, NULL);	//block all signals
 
 	/*SERVER SOCKET HANDLING AND DISPATCHER THREAD CREATION*/
 	
-    serverfd = socket(AF_UNIX, SOCK_STREAM, 0);
-    if (serverfd < 0) err_socket();
+    os_serverfd = socket(AF_UNIX, SOCK_STREAM, 0);
+    if (os_serverfd < 0) err_socket();
 
     #ifdef DEBUG 
-        fprintf(stderr, "DEBUG: Server socket created with fd %d\n", serverfd); 
+        fprintf(stderr, "DEBUG: Server socket created with fd %d\n", os_serverfd); 
     #endif
 
     struct sockaddr_un socket_address;
@@ -76,15 +84,15 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
     
-	err = bind(serverfd, (const struct sockaddr*)&socket_address, sizeof(socket_address));      //bind the socket
+	err = bind(os_serverfd, (const struct sockaddr*)&socket_address, sizeof(socket_address));      //bind the socket
     if (err < 0) err_socket();
     
     #ifdef DEBUG 
         fprintf(stderr, "DEBUG: Server socket bound to %s\n", socket_address.sun_path); 
     #endif
 
-    setnonblocking(serverfd);   //non blocking socket
-    listen(serverfd, SOMAXCONN);    //listen mode
+    setnonblocking(os_serverfd);   //non blocking socket
+    listen(os_serverfd, SOMAXCONN);    //listen mode
 
 	pthread_create(&dispatcher_thread, NULL, &dispatch, NULL);
 	
@@ -96,4 +104,5 @@ int main(int argc, char *argv[]) {
 	_handler(waited_sig);
 
 	pthread_join(dispatcher_thread, NULL);
+
 }

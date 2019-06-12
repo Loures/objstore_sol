@@ -40,10 +40,10 @@
 		strerror_r(errno, buf, 128); \
 	    fprintf(stderr, "Error removing file \'%s\': %s\n", filename, buf);}
 
-	#define err_select() \
+	#define err_select(fd) \
 		{char buf[128]; \
 		strerror_r(errno, buf, 128); \
-	    fprintf(stderr, "Error polling select: %s\n", buf);}
+	    fprintf(stderr, "Error polling select on fd %d: %s\n", fd, buf);}
 
 
 	#define OS_ERROR_MACROS_H

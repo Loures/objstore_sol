@@ -1,4 +1,4 @@
 #ifndef OS_WORKER_H
-void *workerdummy(void *ptr);
+void *worker_loop(void *ptr);
 #define OS_WORKER_H
 #endif
