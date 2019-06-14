@@ -16,6 +16,10 @@
 
 	extern volatile sig_atomic_t OS_RUNNING;
 	extern int os_serverfd;
+	
+	extern ssize_t SO_READ_BUFFSIZE;
+	extern ssize_t SO_WRITE_BUFFSIZE;
+
 	extern volatile int worker_num;
 	extern pthread_mutex_t client_list_mtx;
 	extern pthread_cond_t worker_num_cond;
@@ -24,6 +28,7 @@
 	typedef struct client_t {
 		char *name;
 		int socketfd;
+		int running;
 		pthread_t worker;
 	} client_t;
 
@@ -38,7 +43,17 @@
 			if (err < 0) fprintf(stderr, "Error emptying sigset\n"); \
 		} \
 
+	#define free_os_msg(msg) \
+		{ \
+			free(msg->data); \
+			free(msg->name); \
+			free(msg->cmd); \
+			free(msg); \
+		} \
+	
+
 	#define setnonblocking(fd) fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK)
+	#define setblocking(fd) fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) & ~O_NONBLOCK)
 		
 	#define OS_MAIN_H
 	

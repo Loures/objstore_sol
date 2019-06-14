@@ -4,4 +4,11 @@
 #define OS_CLIENT_DELETE   3
 #define OS_CLIENT_LEAVE    4
 
-extern int os_client_commandhandler(client_t *client, int fd, char *header, size_t headerlen);
+typedef struct os_msg_t {
+	char *cmd;
+	char *name;
+	size_t len;
+	char *data;
+} os_msg_t;
+
+extern int os_client_commandhandler(int fd, client_t *client, os_msg_t *msg);

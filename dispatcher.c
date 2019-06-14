@@ -25,21 +25,22 @@ void *dispatch(void *arg) {
     fd_set fdset;
     FD_ZERO(&fdset);
     FD_SET(os_serverfd, &fdset);
-    struct timespec timeout = (struct timespec){0, 20000000};   //poll timeout (e.g poll every 20ms)
+    struct timespec timeout = (struct timespec){0, 10000000};   //poll timeout (e.g poll every 20ms)
     while(OS_RUNNING) {
         int err = pselect(os_serverfd + 1, &fdset, NULL, NULL, &timeout, NULL);    //poll socket file descriptor
         if (err < 0) err_select(os_serverfd);
         if (FD_ISSET(os_serverfd, &fdset)) {   //checks if we have a pending connection and creates client shiet;
             int client_fd = accept(os_serverfd, NULL, NULL);
-            setnonblocking(client_fd);
+
             
-            pthread_mutex_lock(&client_list_mtx);
             client_t *new_client = (client_t*)malloc(sizeof(client_t));
             
             memset(new_client, 0, sizeof(client_t));    //zero client_t structure
             new_client->name = NULL;
             new_client->socketfd = client_fd;
+            new_client->running = 1;
             pthread_t *wk = &(new_client->worker);
+            pthread_mutex_lock(&client_list_mtx);
             client_list = linkedlist_new(client_list, (void*)new_client);
             worker_num++;   //add new thread worker
             pthread_mutex_unlock(&client_list_mtx);

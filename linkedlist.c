@@ -43,7 +43,9 @@ linkedlist_elem *linkedlist_remove(linkedlist_elem *list, linkedlist_elem *elem)
 				if (elem->next) (elem->next)->prev = elem->prev;
 			} else list = elem->next;	//removal of head element
 			free(elem->ptr);
+			elem->ptr = NULL;
 			free(elem);
+			elem = NULL;
 			return list;
 		}
 		curr = curr->next;

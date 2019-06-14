@@ -1,113 +1,126 @@
 #include <os_server.h>
 #include <os_client.h>
 #include <sys/socket.h>
+#include <fs.h>
 
-static int getcommand(const char* command) {
-    if (!strcmp(command, "REGISTER")) return OS_CLIENT_REGISTER;
-    if (!strcmp(command, "STORE")) return OS_CLIENT_STORE;
-    if (!strcmp(command, "RETRIEVE")) return OS_CLIENT_RETRIEVE;
-    if (!strcmp(command, "DELETE")) return OS_CLIENT_DELETE;
-    if (!strcmp(command, "LEAVE")) return OS_CLIENT_LEAVE;
+const char *ok = "OK \n";
+const char *retrieve = "DATA ";
+
+static int getcommand(os_msg_t *msg) {
+    if (msg->cmd) {
+        if (strcmp(msg->cmd, "REGISTER") == 0 && msg->name) return OS_CLIENT_REGISTER;
+        if (strcmp(msg->cmd, "STORE") == 0 && msg->name && msg->len && msg->data) return OS_CLIENT_STORE;
+        if (strcmp(msg->cmd, "RETRIEVE") == 0 && msg->name) return OS_CLIENT_RETRIEVE;
+        if (strcmp(msg->cmd, "DELETE") == 0 && msg->name) return OS_CLIENT_DELETE;
+        if (strcmp(msg->cmd, "LEAVE") == 0) return OS_CLIENT_LEAVE;
+    }
     return -1;
 }
 
-char *inttochar(int from, char *to) {
-	int temp = from;
-    memcpy(to, &temp, sizeof(int));
-    return to;
-}
-
-static int iter_checkdup(const void *ptr, void *arg) {
-    char *name = (char*)arg;
+static int iter_fd_exists(const void *ptr, void *arg) {
+    int sfd = *(int*)arg;
     client_t *client = (client_t*)ptr;
-    if (client->name) return strcmp(client->name, name) == 0;
+    if (client->socketfd) return sfd == client->socketfd;
     return 0;
 }
 
-
-static void client_send_headerlen(int fd, int len) {
-    char clen[sizeof(int)];
-    inttochar(len, clen);
-    send(fd, clen, sizeof(int), 0);
-}
-
-void client_send_reply(int fd, char *receipt) {
-    client_send_headerlen(fd, strlen(receipt) + 1);     //+1 for null terminator
-    send(fd, receipt, strlen(receipt) + 1, 0);
-}
-
-static void send_ok(int fd, const char *msg) {
-    char to_send[5 + strlen(msg)];  //5 is the length of "OK" plus "\n\0"
-    sprintf(to_send, "OK %s\n", msg);
-    client_send_reply(fd, to_send);
+static void send_ok(int fd) {
+    send(fd, ok, 5, 0);
 }
 
 static void send_ko(int fd, const char *msg) {
     char to_send[5 + strlen(msg)];  //5 is the length of "OK" plus "\n\0"
     sprintf(to_send, "KO %s\n", msg);
-    client_send_reply(fd, to_send);
+    send(fd, to_send, 5 + strlen(msg), 0);
 }
 
 static void os_client_handleregistration(int fd, client_t *client, const char *name) {
+    if (client->name != NULL) {
+        send_ko(fd, "You're already registered");
+        return;
+    }
+        
     pthread_mutex_lock(&client_list_mtx);
-    if (linkedlist_search(client_list, &iter_checkdup, (void*)name) == NULL) {
+
+    if (linkedlist_search(client_list, &iter_fd_exists, (void*)name) == NULL) {
         client->name = (char*)malloc(strlen(name) + 1);     //+1 for \0 terminator
         strcpy(client->name, name);
 
+        fs_mkdir(client);
+
         #ifdef DEBUG
-            printf("DEBUG: Client registered as %s\n", client->name);
+            fprintf(stderr, "DEBUG: Client registered as %s\n", client->name);
         #endif
 
-        send_ok(fd, "Registered");
+        send_ok(fd);
     } else send_ko(fd, "Username already exists");
+
     pthread_mutex_unlock(&client_list_mtx);
 }
 
 static void os_client_handleleave(int fd, client_t *client) {
-    pthread_mutex_lock(&client_list_mtx);
     char *name = client->name;
-    linkedlist_elem *torm;
-    if ((torm = linkedlist_search(client_list, &iter_checkdup, (void*)name)) != NULL) {
+    
+    #ifdef DEBUG
+        fprintf(stderr, "DEBUG: Client on socket %d (%s) left\n", fd, name);
+    #endif
 
-        #ifdef DEBUG
-            printf("DEBUG: Client %s left\n", name);
-        #endif
-
-        free(client->name);
-        client_list = linkedlist_remove(client_list, torm);
-        
-        send_ok(fd, "Goodbye!");
-        
-        close(fd);
-    } else send_ko(fd, "You're not registered");
-    pthread_mutex_unlock(&client_list_mtx);
+    client->running = 0;
 }
 
-int os_client_commandhandler(client_t *client, int fd, char *header, size_t headerlen) {
-    char cpy[headerlen];
-    char saveptr[headerlen];   //for strtok_r;
-    strcpy(cpy, (const char*)header);
-    char *command = strtok_r(cpy, " ", (char**)&saveptr);
-    int cmd_num;
+static void os_client_handleretrieve(int fd, client_t *client, char *filename) {
+    if (!client->name) {
+        send_ko(fd, "You're not registered");
+        return;
+    }
 
-    char *name;
-    char *len;
+    os_read_t read_t = fs_read(client, filename);
+    if (read_t.data) {
+        char len[sizeof(ssize_t) + 1];
+        memset(len, 0, sizeof(ssize_t) + 1);
+        sprintf(len, "%ld", read_t.size);
+        ssize_t response_len = strlen(retrieve) + strlen(len) + 3 + read_t.size;
+        char *response = (char*)malloc(sizeof(char) * (response_len));   //3 -> space newline space
+        memset(response, 0, response_len);
+        sprintf(response, "DATA %s \n ", len);
+        memcpy(response + (strlen(retrieve) + strlen(len) + 3), read_t.data, read_t.size);
+        send(fd, response, response_len, 0);
+        free(response);
+        free(read_t.data);
+    } else {
+        char buf[128];
+        strerror_r(errno, buf, 128);
+        send_ko(fd, buf);
+    }
+}
 
-    if (command) cmd_num = getcommand(command); else cmd_num = getcommand(cpy);
+static void os_client_handlestore(int fd, client_t *client, char *filename, char *data, size_t len) {
+    if (!client->name) {
+        send_ko(fd, "You're not registered");
+        return;
+    }
+    int err = fs_write(client, filename, len, data);
+    if (err == -1) {
+        char buf[128];
+        strerror_r(errno, buf, 128);
+        send_ko(fd, buf);
+    } else send_ok(fd);
+}
+
+int os_client_commandhandler(int fd, client_t *client, os_msg_t *msg) {
+    int cmd_num = getcommand(msg);
     switch (cmd_num) {
 
         case OS_CLIENT_REGISTER: 
-            name = strtok_r(NULL, " ", (char**)&saveptr);
-            os_client_handleregistration(fd, client, (const char*)name);
+            os_client_handleregistration(fd, client, (const char*)msg->name);
             return 0;
             break;
         case OS_CLIENT_STORE: 
-            printf("GOT STORE\n");
-            /* code */
+            os_client_handlestore(fd, client, msg->name, msg->data, msg->len);
+            return 0;
             break;
         case OS_CLIENT_RETRIEVE: 
-            printf("GOT RETRIEVE\n");
-            /* code */
+            os_client_handleretrieve(fd, client, msg->name);
             break;
         case OS_CLIENT_DELETE: 
             printf("GOT DELETE\n");
@@ -115,11 +128,12 @@ int os_client_commandhandler(client_t *client, int fd, char *header, size_t head
             break;
         case OS_CLIENT_LEAVE: 
             os_client_handleleave(fd, client);
-            return 0;
+            return -1;
             /* code */
             break;
 
         default:
+            send_ko(fd, "Broken message");
             return 0;
             break;
     }

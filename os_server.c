@@ -3,12 +3,14 @@
 #include <sys/un.h>
 #include <errormacros.h>
 #include <dispatcher.h>
+#include <fs.h>
 
-#define SK_RMAX_PATH "/proc/sys/net/core/rmem_max"
-#define SK_WMAX_PATH "/proc/sys/net/core/rmem_max"
 
 sigset_t nosignal;
 linkedlist_elem *client_list = NULL;
+
+ssize_t SO_READ_BUFFSIZE = 0;
+ssize_t SO_WRITE_BUFFSIZE = 0;
 
 volatile sig_atomic_t OS_RUNNING = 1;
 static sigset_t sigmask;
@@ -58,24 +60,6 @@ static void _handler(int sig) {
 	}
 }
 
-static void sk_wrmaxes() {
-    int fd_rmem = open(SK_RMAX_PATH, O_RDONLY);
-    if (fd_rmem < 0) err_open(SK_RMAX_PATH);
-    int fd_wmem = open(SK_WMAX_PATH, O_RDONLY);
-    if (fd_wmem < 0) err_open(SK_WMAX_PATH);
-    char rmem[sizeof(ssize_t)];
-    ssize_t rlen = read(fd_rmem, rmem, sizeof(ssize_t));
-    close(fd_rmem);
-    char wmem[sizeof(ssize_t)];
-    ssize_t wlen = read(fd_wmem, wmem, sizeof(ssize_t));
-    close(fd_wmem);
-	rmem[rlen - 1] = '\0';	//for some unknown reason the file ends with \n
-	wmem[wlen - 1] = '\0';
-	fprintf(stderr, "DEBUG: Max read size from socket is %s bytes\n", rmem);
-	fprintf(stderr, "DEBUG: Max write size to socket is %s bytes\n", wmem);
-}
-
-
 int main(int argc, char *argv[]) {
 	int err = sigfillset(&nosignal);
 	if (err < 0) fprintf(stderr, "Error filling sigset\n");
@@ -84,11 +68,16 @@ int main(int argc, char *argv[]) {
 	/*SERVER SOCKET HANDLING AND DISPATCHER THREAD CREATION*/
 	
     os_serverfd = socket(AF_UNIX, SOCK_STREAM, 0);
-    if (os_serverfd < 0) err_socket();
+    if (os_serverfd < 0) err_socket(os_serverfd);
+
+	ssize_t size = sizeof(ssize_t);
+	getsockopt(os_serverfd, SOL_SOCKET, SO_RCVBUF, (void*)&SO_READ_BUFFSIZE, (socklen_t*)&size);
+	getsockopt(os_serverfd, SOL_SOCKET, SO_SNDBUF, (void*)&SO_WRITE_BUFFSIZE, (socklen_t*)&size);
 
     #ifdef DEBUG 
         fprintf(stderr, "DEBUG: Server socket created with fd %d\n", os_serverfd); 
-		sk_wrmaxes();
+        fprintf(stderr, "DEBUG: Socket read buffer size is %ld bytes\n", SO_READ_BUFFSIZE); 
+        fprintf(stderr, "DEBUG: Socket write buffer size is %ld bytes\n", SO_WRITE_BUFFSIZE); 
     #endif
 
     struct sockaddr_un socket_address;
@@ -103,7 +92,7 @@ int main(int argc, char *argv[]) {
 	}
     
 	err = bind(os_serverfd, (const struct sockaddr*)&socket_address, sizeof(socket_address));      //bind the socket
-    if (err < 0) err_socket();
+    if (err < 0) err_socket(os_serverfd);
     
     #ifdef DEBUG 
         fprintf(stderr, "DEBUG: Server socket bound to %s\n", socket_address.sun_path); 
@@ -111,6 +100,8 @@ int main(int argc, char *argv[]) {
 
     setnonblocking(os_serverfd);   //non blocking socket
     listen(os_serverfd, SOMAXCONN);    //listen mode
+
+	fs_init();
 
 	pthread_create(&dispatcher_thread, NULL, &dispatch, NULL);
 	
