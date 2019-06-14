@@ -23,6 +23,9 @@ fs.o: fs.c fs.h
 test: test.c test.h
 	$(CC) $(CFLAGS) $(LDLIBS) -lreadline $(CPPFLAGS) $< linkedlist.o -o $@
 
+interactive: interactive.c
+	$(CC) $(CFLAGS) $(LDLIBS) -lreadline $(CPPFLAGS) $< -o $@
+
 dispatcher.o: dispatcher.c dispatcher.h
 	$(CC) $(CFLAGS) $(LDLIBS) $(CPPFLAGS) -c $< -o $@
 

@@ -1,7 +1,9 @@
 #ifndef OS_LINKED_LIST_H
 	typedef struct linkedlist_elem {
 		void *ptr;
+		pthread_mutex_t prevmtx;
 		struct linkedlist_elem *prev;
+		pthread_mutex_t nextmtx;
 		struct linkedlist_elem *next;
 	} linkedlist_elem;
 
@@ -14,6 +16,8 @@
 	linkedlist_elem *linkedlist_remove(linkedlist_elem *list, linkedlist_elem *elem);
 
 	void linkedlist_iter(linkedlist_elem *list, void (*fun)(const void*, void*), void *arg);
+
+	linkedlist_elem *linkedlist_iterative_remove(linkedlist_elem *list, int (*fun)(const void*, void*), void *arg);
 
 	void linkedlist_free(linkedlist_elem *list);
 	

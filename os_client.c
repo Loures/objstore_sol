@@ -40,8 +40,6 @@ static void os_client_handleregistration(int fd, client_t *client, const char *n
         return;
     }
         
-    pthread_mutex_lock(&client_list_mtx);
-
     if (linkedlist_search(client_list, &iter_fd_exists, (void*)name) == NULL) {
         client->name = (char*)malloc(strlen(name) + 1);     //+1 for \0 terminator
         strcpy(client->name, name);
@@ -54,8 +52,6 @@ static void os_client_handleregistration(int fd, client_t *client, const char *n
 
         send_ok(fd);
     } else send_ko(fd, "Username already exists");
-
-    pthread_mutex_unlock(&client_list_mtx);
 }
 
 static void os_client_handleleave(int fd, client_t *client) {
@@ -94,6 +90,20 @@ static void os_client_handleretrieve(int fd, client_t *client, char *filename) {
     }
 }
 
+static void os_client_handledelete(int fd, client_t *client, char *filename) {
+    if (!client->name) {
+        send_ko(fd, "You're not registered");
+        return;
+    }
+
+    int err = fs_delete(client, filename);
+    if (err == -1) {
+        char buf[128];
+        strerror_r(errno, buf, 128);
+        send_ko(fd, buf);
+    } else send_ok(fd);
+}
+
 static void os_client_handlestore(int fd, client_t *client, char *filename, char *data, size_t len) {
     if (!client->name) {
         send_ko(fd, "You're not registered");
@@ -122,9 +132,8 @@ int os_client_commandhandler(int fd, client_t *client, os_msg_t *msg) {
         case OS_CLIENT_RETRIEVE: 
             os_client_handleretrieve(fd, client, msg->name);
             break;
-        case OS_CLIENT_DELETE: 
-            printf("GOT DELETE\n");
-            /* code */
+        case OS_CLIENT_DELETE:
+            os_client_handledelete(fd, client, msg->name);
             break;
         case OS_CLIENT_LEAVE: 
             os_client_handleleave(fd, client);

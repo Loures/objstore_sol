@@ -40,10 +40,12 @@ void *dispatch(void *arg) {
             new_client->socketfd = client_fd;
             new_client->running = 1;
             pthread_t *wk = &(new_client->worker);
-            pthread_mutex_lock(&client_list_mtx);
+            //if (client_list) pthread_mutex_lock(&(client_list->prevmtx));
+            //if (client_list) pthread_mutex_lock(&(client_list->nextmtx));
             client_list = linkedlist_new(client_list, (void*)new_client);
             worker_num++;   //add new thread worker
-            pthread_mutex_unlock(&client_list_mtx);
+            //if (client_list) pthread_mutex_unlock(&(client_list->prevmtx));
+            //if (client_list) pthread_mutex_unlock(&(client_list->nextmtx));
             pthread_create(wk, NULL, &worker_loop, (void*)new_client);
         }
         FD_ZERO(&fdset);

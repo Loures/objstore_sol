@@ -40,6 +40,17 @@ int fs_write(client_t *client, char *filename, size_t len, char *data) {
     return 0;
 }
 
+int fs_delete(client_t *client, char *filename) {
+    char path[strlen(DATA_PATH) + strlen(client->name) + strlen(filename) + 3]; //3 for slashes (/) and null terminator
+    sprintf(path, "%s/%s/%s", DATA_PATH, client->name, filename);
+    int err = unlink(path);
+    if (err < 0) {
+        err_unlink(filename);
+        return -1;
+    }
+    return 0;
+}
+
 os_read_t fs_read(client_t *client, char *filename) {
     char path[strlen(DATA_PATH) + strlen(client->name) + strlen(filename) + 3]; //3 for slashes (/) and null terminator
     sprintf(path, "%s/%s/%s", DATA_PATH, client->name, filename);

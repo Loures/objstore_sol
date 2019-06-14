@@ -4,9 +4,6 @@
 #include <os_client.h>
 #include <errormacros.h>
 
-static int volatile READING_DATA = 0;
-static ssize_t default_buffersize = 0;
-
 typedef struct buffer_t {
     char *data;
     size_t size;
@@ -19,18 +16,36 @@ static int iter_fd_exists(const void *ptr, void *arg) {
     return 0;
 }
 
+static int readn_polled(int fd, char *buff, size_t size) {
+    size_t sizecnt = 0;
+
+    struct pollfd pollfds[1];
+    pollfds[0] = (struct pollfd){fd, POLLIN, 0};
+    
+    while(size > 0) {
+        int ready = poll(pollfds, 1, 10);
+        if (ready < 0) err_select(fd);
+
+        if (ready == 1 && pollfds[0].revents & POLLIN) {
+            ssize_t len = recv(fd, buff + sizecnt, size, 0);
+            if (len <= 0) {
+                if (len < 0) err_read(fd);
+                return -1;
+            }
+            size = size - len;
+            sizecnt = sizecnt + len;
+        }
+    }
+    return sizecnt;
+}
+
 void worker_cleanup(int fd, client_t *client, char *buffer) {
     #ifdef DEBUG
         fprintf(stderr, "DEBUG: Cleaned up worker thread %ld\n", pthread_self());
     #endif
     free(buffer);
     if (client->name) free(client->name);
-    pthread_mutex_lock(&client_list_mtx);
-    linkedlist_elem *torm = linkedlist_search(client_list, &iter_fd_exists, &fd);
-    if (torm != NULL) {
-        client_list = linkedlist_remove(client_list, torm);
-    }
-    pthread_mutex_unlock(&client_list_mtx);
+    linkedlist_iterative_remove(client_list, &iter_fd_exists, &fd);
     close(fd);
     worker_num--;
     if (worker_num == 0) pthread_cond_signal(&worker_num_cond);
@@ -66,25 +81,7 @@ os_msg_t *worker_handlemsg(int fd, char *buff, size_t buffsize) {
         memset(msg->data, 0, sizeof(char) * (msg->len));
         if (headerlen < buffsize) memcpy(msg->data, buff + headerlen, buffsize - headerlen);
         //handle more data
-        if (msg->len > buffsize - headerlen) {
-            size_t total_size = msg->len - (buffsize - headerlen);
-            size_t sizecnt = 0;
-
-            struct pollfd pollfds[1];
-            pollfds[0] = (struct pollfd){fd, POLLIN, 0};
-            
-            while(total_size > 0) {
-                int ready = poll(pollfds, 1, 10);
-                if (ready < 0) err_select(fd);
-
-                if (ready == 1 && pollfds[0].revents & POLLIN) {
-                    size_t len = recv(fd, msg->data + (buffsize - headerlen ) + sizecnt, total_size, 0);
-                    if (len <= 0) break;
-                    total_size = total_size - len;
-                    sizecnt = sizecnt + len;
-                }
-            }
-        }
+        if (msg->len > buffsize - headerlen) readn_polled(fd, msg->data + (buffsize - headerlen), msg->len - (buffsize - headerlen));
     }
 
     memset(buff, 0, SO_READ_BUFFSIZE);
@@ -101,11 +98,8 @@ void *worker_loop(void *ptr) {
     
     int client_socketfd = client->socketfd;     //store socket fd on stack (faster access)
 
-    struct timespec timeout = (struct timespec){0, 1000000};
-
     struct pollfd pollfds[1];
     pollfds[0] = (struct pollfd){client_socketfd, POLLIN, 0};
-
 
     char *buffer = (char*)malloc(sizeof(char) * SO_READ_BUFFSIZE);
     memset(buffer, 0, SO_READ_BUFFSIZE);
