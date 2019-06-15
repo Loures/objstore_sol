@@ -1,6 +1,11 @@
-#include <os_server.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 #include <objstore.h>
 #include <readline/readline.h>
+
+#define ERR_STRING objstore_errstr
+
 
 void parsequery(char *msg) {
     char saveptr[212992];
@@ -9,11 +14,12 @@ void parsequery(char *msg) {
     if (!cmd) return;
     if (strcmp(cmd, "REGISTER") == 0) {
         char *name = strtok_r(NULL, " ", (char**)&saveptr);
-        os_connect(name);
+        if (!os_connect(name)) printf(ERR_STRING); else printf("OK\n");
     }
     if (strcmp(cmd, "RETRIEVE") == 0) {
         char *name = strtok_r(NULL, " ", (char**)&saveptr);
-        printf("%s", os_retrieve(name));
+        char *data = os_retrieve(name);
+        if (data) printf("%s\n", data); else printf(ERR_STRING);
         fflush(NULL);
     }
     if (strcmp(cmd, "STORE") == 0) {
@@ -21,12 +27,16 @@ void parsequery(char *msg) {
         char *lenstr = strtok_r(NULL, " ", (char**)&saveptr);
         char *data = strtok_r(NULL, " ", (char**)&saveptr);
         size_t len = atol(lenstr);
-        os_store(name, data, len);
+        char cpy[len + 1];
+        memset(cpy, 0, len + 1);
+        memcpy(cpy, data, len);
+        if (!os_store(name, cpy, len)) printf(ERR_STRING); else printf("OK\n");
     }
     if (strcmp(cmd, "DELETE") == 0) {
         char *name = strtok_r(NULL, " ", (char**)&saveptr);
-        os_delete(name);  
-    } 
+        if (!os_delete(name)) printf(ERR_STRING); else printf("OK\n");
+    }
+    if (strcmp(cmd, "LEAVE") == 0) os_disconnect();
     return;
 }
 
@@ -38,7 +48,7 @@ int main(int argc, char *argv[]) {
         if (query) parsequery(query);
         free(query);
         query = readline("> ");
-    } while (query && strcmp(query, "LEAVE") != 0);
+    } while (query && strcmp(query, "quit") != 0);
 
     return 0;
 }

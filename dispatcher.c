@@ -14,9 +14,9 @@ void dispatcher_cleanup() {
     if (err < 0) err_close(os_serverfd);
     err = unlink(SOCKET_ADDR);
     if (err < 0) err_unlink(SOCKET_ADDR); 
-    #ifdef DEBUG
-        fprintf(stderr, "DEBUG: %s succesfully unlinked\n", SOCKET_ADDR);
-    #endif
+    if (VERBOSE) {
+        fprintf(stderr, "OBJSTORE: %s succesfully unlinked\n", SOCKET_ADDR);
+    }
     linkedlist_free(client_list);
 }
 

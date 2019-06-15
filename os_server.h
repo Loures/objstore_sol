@@ -17,6 +17,8 @@
 	extern volatile sig_atomic_t OS_RUNNING;
 	extern int os_serverfd;
 	
+	extern int VERBOSE;
+
 	extern size_t SO_READ_BUFFSIZE;
 	extern size_t SO_WRITE_BUFFSIZE;
 
@@ -40,7 +42,7 @@
 	#define discardsignals(sgn) \
 		{ \
 			int err = sigfillset(&sgn); \
-			if (err < 0) fprintf(stderr, "Error emptying sigset\n"); \
+			if (err < 0) fprintf(stderr, "OBJSTORE: Error emptying sigset\n"); \
 		} \
 
 	#define free_os_msg(msg) \

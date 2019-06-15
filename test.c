@@ -12,10 +12,12 @@ void receive_reply(int cfd, char *buff) {
 
 int main(int argc, char *argv[]) {
 
-	os_connect("marco");
-	char *buff = os_retrieve("video.mp4");
-	int fd = open(argv[1], O_CREAT | O_RDWR, S_IRWXU);
-	write(fd, buff, LAST_LENGTH);
+	os_connect(argv[1]);
+	int fd = open(argv[2], O_CREAT | O_RDWR, S_IRWXU);
+	char *buff = (char*)malloc(sizeof(char) * 113159810);
+	read(fd, buff, 113159810);
+	os_store(argv[2], buff, 113159810);
+	os_disconnect();
 
 	return 0;
 }

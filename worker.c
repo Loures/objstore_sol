@@ -40,9 +40,9 @@ static size_t readn_polled(int fd, char *buff, size_t size) {
 }
 
 void worker_cleanup(int fd, client_t *client, char *buffer) {
-    #ifdef DEBUG
-        fprintf(stderr, "DEBUG: Cleaned up worker thread %ld\n", pthread_self());
-    #endif
+    if (VERBOSE) {
+        fprintf(stderr, "OBJSTORE: Cleaned up worker thread %ld\n", pthread_self());
+    }
     free(buffer);
     if (client->name) free(client->name);
     linkedlist_iterative_remove(client_list, &iter_fd_exists, &fd);
@@ -76,8 +76,8 @@ os_msg_t *worker_handlemsg(int fd, char *buff, size_t buffsize) {
     if (len && len[0] != '\n') msg->len = atol(len);
     
     if (newline && newline[0] == '\n') {
-        size_t headerlen = strlen(cmd) + 1 + strlen(name) + 1 + strlen(len) + 3;    //command name len \n data
-        msg->data = (char*)malloc(sizeof(char) * msg->len);
+        size_t headerlen = strlen(cmd) + 1 + strlen(name) + 1 + strlen(len) + 3;    //command name len \n data 
+        msg->data = (char*)malloc(sizeof(char) * (msg->len));   
         memset(msg->data, 0, sizeof(char) * (msg->len));
         if (headerlen < buffsize) memcpy(msg->data, buff + headerlen, buffsize - headerlen);
         //handle more data
@@ -92,9 +92,9 @@ void *worker_loop(void *ptr) {
     client_t *client = (client_t*)ptr;
     client->worker = pthread_self();
 
-    #ifdef DEBUG
-       fprintf(stderr, "DEBUG: Client connected on socket %d using thread %ld\n", client->socketfd, pthread_self());
-    #endif
+    if (VERBOSE) {
+       fprintf(stderr, "OBJSTORE: Client connected on socket %d using thread %ld\n", client->socketfd, pthread_self());
+    }
     
     int client_socketfd = client->socketfd;     //store socket fd on stack (faster access)
 
@@ -104,7 +104,7 @@ void *worker_loop(void *ptr) {
     char *buffer = (char*)malloc(sizeof(char) * SO_READ_BUFFSIZE);
     memset(buffer, 0, SO_READ_BUFFSIZE);
 
-    //setnonblocking(client_socketfd);
+    setnonblocking(client_socketfd);
 
     while(OS_RUNNING && client->running == 1) {
         int ready = poll(pollfds, 1, 10);
@@ -118,9 +118,9 @@ void *worker_loop(void *ptr) {
                 free_os_msg(msg);
             }
             if (len <= 0) {     //our client has shut itself down without disconnecting
-                #ifdef DEBUG
-                    fprintf(stderr, "DEBUG: Client on socket %d has terminated without disconnecting\n", client_socketfd);
-                #endif
+                if (VERBOSE) {
+                    fprintf(stderr, "OBJSTORE: Client on socket %d has terminated without disconnecting\n", client_socketfd);
+                }
                 break;
             }
         } 

@@ -1,6 +1,8 @@
 #include <os_server.h>
 #include <os_client.h>
 #include <sys/socket.h>
+#include <sys/poll.h>
+#include <errormacros.h>
 #include <fs.h>
 
 const char *ok = "OK \n";
@@ -15,6 +17,29 @@ static int getcommand(os_msg_t *msg) {
         if (strcmp(msg->cmd, "LEAVE") == 0) return OS_CLIENT_LEAVE;
     }
     return -1;
+}
+
+static size_t writen_polled(int fd, char *buff, size_t size) {
+    size_t sizecnt = 0;
+
+    struct pollfd pollfds[1];
+    pollfds[0] = (struct pollfd){fd, POLLOUT, 0};
+    
+    while(size > 0) {
+        int ready = poll(pollfds, 1, 10);
+        if (ready < 0) err_select(fd);
+
+        if (ready == 1 && pollfds[0].revents & POLLOUT) {
+            ssize_t len = send(fd, buff + sizecnt, size, 0);
+            if (len <= 0) {
+                if (len < 0) err_write(fd);
+                return -1;
+            }
+            size = size - len;
+            sizecnt = sizecnt + len;
+        }
+    }
+    return sizecnt;
 }
 
 static int iter_fd_exists(const void *ptr, void *arg) {
@@ -46,9 +71,9 @@ static void os_client_handleregistration(int fd, client_t *client, const char *n
 
         fs_mkdir(client);
 
-        #ifdef DEBUG
-            fprintf(stderr, "DEBUG: Client registered as %s\n", client->name);
-        #endif
+        if (VERBOSE) {
+            fprintf(stderr, "OBJSTORE: Client registered as %s\n", client->name);
+        }
 
         send_ok(fd);
     } else send_ko(fd, "Username already exists");
@@ -56,10 +81,10 @@ static void os_client_handleregistration(int fd, client_t *client, const char *n
 
 static void os_client_handleleave(int fd, client_t *client) {
     
-    #ifdef DEBUG
+    if (VERBOSE) {
         char *name = client->name;
-        fprintf(stderr, "DEBUG: Client on socket %d (%s) left\n", fd, name);
-    #endif
+        fprintf(stderr, "OBJSTORE: Client on socket %d (%s) left\n", fd, name);
+    }
 
     client->running = 0;
 }
@@ -80,8 +105,7 @@ static void os_client_handleretrieve(int fd, client_t *client, char *filename) {
         memset(response, 0, response_len);
         sprintf(response, "DATA %s \n ", len);
         memcpy(response + (strlen(retrieve) + strlen(len) + 3), read_t.data, read_t.size);
-        send(fd, response, response_len, 0);
-        printf("sent\n");
+        writen_polled(fd, response, response_len);
         free(response);
         free(read_t.data);
     } else {
@@ -138,8 +162,7 @@ int os_client_commandhandler(int fd, client_t *client, os_msg_t *msg) {
             break;
         case OS_CLIENT_LEAVE: 
             os_client_handleleave(fd, client);
-            return -1;
-            /* code */
+            return 0;
             break;
 
         default:
