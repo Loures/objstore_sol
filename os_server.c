@@ -20,10 +20,20 @@ volatile int worker_num = 0;
 pthread_mutex_t client_list_mtx = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t worker_num_cond = PTHREAD_COND_INITIALIZER;
 
-static void stats_iterator(const void *ptr, void *arg) {
-	client_t *client = (client_t*)ptr;
+static void stats() {
 	fflush(stderr);
-	fprintf(stderr, "{NAME: %s, SOCKETFD: %d, WORKER TID: %ld}\n", client->name, client->socketfd, client->worker);
+	fprintf(stderr, "Numero client: %ld\n", worker_num);
+	FILE *size = popen("du -sh ./data | cut -f1", "r");
+	char buff[128];
+	memset(buff, 0, 128);
+	fgets(buff, 128, size);
+	fprintf(stderr, "Dimensione totale store: %s", buff);
+	pclose(size);
+	FILE *count = popen("ls data/*/* 2> /dev/null | wc -w", "r");
+	memset(buff, 0, 128);
+	fgets(buff, 128, count);
+	fprintf(stderr, "Numero dati nello store: %s\n", buff);
+	pclose(count);
 	fflush(stderr);
 }
 
@@ -47,7 +57,7 @@ static void _handler(int sig) {
 			break;
 		
 		case SIGUSR1:
-			linkedlist_iter(client_list, &stats_iterator, NULL);
+			stats();
 			sigemptyset(&sigmask);			//SIGUSR1 doesnt terminate the process so we must be able to wait for another signal
 			sigaddset(&sigmask, SIGINT);
 			sigaddset(&sigmask, SIGTERM);

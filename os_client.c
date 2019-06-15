@@ -55,9 +55,9 @@ static void os_client_handleregistration(int fd, client_t *client, const char *n
 }
 
 static void os_client_handleleave(int fd, client_t *client) {
-    char *name = client->name;
     
     #ifdef DEBUG
+        char *name = client->name;
         fprintf(stderr, "DEBUG: Client on socket %d (%s) left\n", fd, name);
     #endif
 
