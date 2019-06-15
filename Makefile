@@ -20,11 +20,14 @@ linkedlist.o: linkedlist.c linkedlist.h
 fs.o: fs.c fs.h
 	$(CC) $(CFLAGS) $(LDLIBS) $(CPPFLAGS) -c $< -o $@
 
-test: test.c test.h
-	$(CC) $(CFLAGS) $(LDLIBS) -lreadline $(CPPFLAGS) $< linkedlist.o -o $@
+test: test.c objstore.o
+	$(CC) $(CFLAGS) $(LDLIBS) -lreadline $(CPPFLAGS) $< objstore.o -o $@
 
-interactive: interactive.c
-	$(CC) $(CFLAGS) $(LDLIBS) -lreadline $(CPPFLAGS) $< -o $@
+interactive: interactive.c objstore.o
+	$(CC) $(CFLAGS) $(LDLIBS) -lreadline $(CPPFLAGS) objstore.o $< -o $@
+
+objstore: objstore.c objstore.h
+	$(CC) $(CFLAGS) $(LDLIBS) $(CPPFLAGS) -c $< -o $@
 
 dispatcher.o: dispatcher.c dispatcher.h
 	$(CC) $(CFLAGS) $(LDLIBS) $(CPPFLAGS) -c $< -o $@

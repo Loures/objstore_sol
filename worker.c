@@ -16,7 +16,7 @@ static int iter_fd_exists(const void *ptr, void *arg) {
     return 0;
 }
 
-static int readn_polled(int fd, char *buff, size_t size) {
+static size_t readn_polled(int fd, char *buff, size_t size) {
     size_t sizecnt = 0;
 
     struct pollfd pollfds[1];
@@ -104,7 +104,7 @@ void *worker_loop(void *ptr) {
     char *buffer = (char*)malloc(sizeof(char) * SO_READ_BUFFSIZE);
     memset(buffer, 0, SO_READ_BUFFSIZE);
 
-    setnonblocking(client_socketfd);
+    //setnonblocking(client_socketfd);
 
     while(OS_RUNNING && client->running == 1) {
         int ready = poll(pollfds, 1, 10);

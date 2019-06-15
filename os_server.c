@@ -9,8 +9,8 @@
 sigset_t nosignal;
 linkedlist_elem *client_list = NULL;
 
-ssize_t SO_READ_BUFFSIZE = 0;
-ssize_t SO_WRITE_BUFFSIZE = 0;
+size_t SO_READ_BUFFSIZE = 0;
+size_t SO_WRITE_BUFFSIZE = 0;
 
 volatile sig_atomic_t OS_RUNNING = 1;
 static sigset_t sigmask;
@@ -22,7 +22,7 @@ pthread_cond_t worker_num_cond = PTHREAD_COND_INITIALIZER;
 
 static void stats() {
 	fflush(stderr);
-	fprintf(stderr, "Numero client: %ld\n", worker_num);
+	fprintf(stderr, "Numero client: %d\n", worker_num);
 	FILE *size = popen("du -sh ./data | cut -f1", "r");
 	char buff[128];
 	memset(buff, 0, 128);
@@ -80,7 +80,7 @@ int main(int argc, char *argv[]) {
     os_serverfd = socket(AF_UNIX, SOCK_STREAM, 0);
     if (os_serverfd < 0) err_socket(os_serverfd);
 
-	ssize_t size = sizeof(ssize_t);
+	ssize_t size = sizeof(size_t);
 	getsockopt(os_serverfd, SOL_SOCKET, SO_RCVBUF, (void*)&SO_READ_BUFFSIZE, (socklen_t*)&size);
 	getsockopt(os_serverfd, SOL_SOCKET, SO_SNDBUF, (void*)&SO_WRITE_BUFFSIZE, (socklen_t*)&size);
 

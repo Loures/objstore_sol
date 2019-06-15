@@ -1,9 +1,22 @@
-int os_connect(char *name);
+#ifndef OBJSTORE_H
 
-int os_store(char *name, void *block, size_t len);
+    #include <sys/socket.h>
+    #include <sys/poll.h>
+    #include <sys/un.h>
+    #include <errormacros.h>
 
-void *os_retrieve(char *name);
+	extern size_t LAST_LENGTH;
 
-int os_delete(char *name);
+    int os_connect(char *name);
 
-int os_disconnect();
+    int os_store(char *name, void *block, size_t len);
+
+    void *os_retrieve(char *name);
+
+    int os_delete(char *name);
+
+    int os_disconnect();
+
+    #define OBJSTORE_H
+
+#endif

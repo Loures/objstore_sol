@@ -81,6 +81,7 @@ static void os_client_handleretrieve(int fd, client_t *client, char *filename) {
         sprintf(response, "DATA %s \n ", len);
         memcpy(response + (strlen(retrieve) + strlen(len) + 3), read_t.data, read_t.size);
         send(fd, response, response_len, 0);
+        printf("sent\n");
         free(response);
         free(read_t.data);
     } else {

@@ -17,8 +17,8 @@
 	extern volatile sig_atomic_t OS_RUNNING;
 	extern int os_serverfd;
 	
-	extern ssize_t SO_READ_BUFFSIZE;
-	extern ssize_t SO_WRITE_BUFFSIZE;
+	extern size_t SO_READ_BUFFSIZE;
+	extern size_t SO_WRITE_BUFFSIZE;
 
 	extern volatile int worker_num;
 	extern pthread_mutex_t client_list_mtx;
