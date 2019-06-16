@@ -1,3 +1,9 @@
-extern pthread_t dispatcher_thread;
+#ifndef OS_DISPATCHER_H
 
-void *dispatch(void *arg);
+    extern pthread_t dispatcher_thread;
+
+    void *dispatch(void *arg);
+
+    #define OS_DISPATCHER_H
+
+#endif

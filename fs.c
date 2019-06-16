@@ -1,5 +1,5 @@
 #include <os_server.h>
-#include <errormacros.h>
+#include <sys/stat.h>
 #include <fs.h>
 
 const char *DATA_PATH = "data";
@@ -35,7 +35,6 @@ int fs_write(client_t *client, char *filename, size_t len, char *data) {
         err_write(fd);
         return -1;
     }
-    fsync(fd);      //for consistency, screw buffering!
     close(fd);
     if (VERBOSE) {
         fprintf(stderr, "OBJSTORE: Wrote %ld bytes to file \"%s\"\n", wlen, path);

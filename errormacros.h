@@ -38,7 +38,7 @@
 	#define err_socket(fd) \
 		{char buf[128]; \
 		strerror_r(errno, buf, 128); \
-	    fprintf(stderr, "OBJSTORE: Error on server socket %d: %s\n", fd, buf);}
+	    fprintf(stderr, "OBJSTORE: Error on socket fd %d: %s\n", fd, buf);}
 
 	#define err_unlink(filename) \
 		{char buf[128]; \

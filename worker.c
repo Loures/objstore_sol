@@ -1,8 +1,9 @@
 #include <os_server.h>
-#include <poll.h>
+#include <sys/poll.h>
 #include <sys/socket.h>
 #include <os_client.h>
-#include <errormacros.h>
+
+void sync(void);	//the compiler complaints about implicit decleration otherwise
 
 typedef struct buffer_t {
     char *data;
@@ -46,9 +47,12 @@ void worker_cleanup(int fd, client_t *client, char *buffer) {
     free(buffer);
     if (client->name) free(client->name);
     linkedlist_iterative_remove(client_list, &iter_fd_exists, &fd);
+    sync();
     close(fd);
+    pthread_mutex_lock(&client_list_mtx);
     worker_num--;
-    if (worker_num == 0) pthread_cond_signal(&worker_num_cond);
+    pthread_mutex_unlock(&client_list_mtx);
+    if (worker_num <= 0) pthread_cond_signal(&worker_num_cond);
 }
 
 os_msg_t *worker_handlemsg(int fd, char *buff, size_t buffsize) {
@@ -107,16 +111,16 @@ void *worker_loop(void *ptr) {
     setnonblocking(client_socketfd);
 
     while(OS_RUNNING && client->running == 1) {
-        int ready = poll(pollfds, 1, 10);
-        if (ready < 0) err_select(client_socketfd);
+        int ev = poll(pollfds, 1, 10);
+        if (ev < 0) err_select(client_socketfd);
 
-        if (ready == 1 && (pollfds[0].revents & POLLIN)) {
+        if (ev == 1 && (pollfds[0].revents & POLLIN)) {
             size_t len = recv(client_socketfd, buffer, SO_READ_BUFFSIZE, 0);
             os_msg_t *msg = worker_handlemsg(client_socketfd, buffer, len);
             if (msg->cmd) {
                 os_client_commandhandler(client_socketfd, client, msg);
-                free_os_msg(msg);
             }
+            free_os_msg(msg);
             if (len <= 0) {     //our client has shut itself down without disconnecting
                 if (VERBOSE) {
                     fprintf(stderr, "OBJSTORE: Client on socket %d has terminated without disconnecting\n", client_socketfd);

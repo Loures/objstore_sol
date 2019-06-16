@@ -1,10 +1,10 @@
 #include <os_server.h>
 #include <sys/socket.h>
 #include <sys/un.h>
-#include <errormacros.h>
 #include <dispatcher.h>
 #include <fs.h>
 
+#define SOCKET_ADDR "/tmp/objstore.sock"
 
 sigset_t nosignal;
 linkedlist_elem *client_list = NULL;
@@ -23,8 +23,8 @@ pthread_cond_t worker_num_cond = PTHREAD_COND_INITIALIZER;
 
 static void stats() {
 	fflush(stderr);
-	fprintf(stderr, "OBJSTORE: Numero client: %d\n", worker_num);
-	FILE *size = popen("du -sh ./data | cut -f1", "r");
+	fprintf(stderr, "\nOBJSTORE: Numero client connessi: %d\n", worker_num);
+	FILE *size = popen("du -s --apparent-size ./data | cut -f1", "r");
 	char buff[128];
 	memset(buff, 0, 128);
 	fgets(buff, 128, size);
@@ -33,7 +33,7 @@ static void stats() {
 	FILE *count = popen("ls data/*/* 2> /dev/null | wc -w", "r");
 	memset(buff, 0, 128);
 	fgets(buff, 128, count);
-	fprintf(stderr, "OBJSTORE: Numero dati nello store: %s\n", buff);
+	fprintf(stderr, "OBJSTORE: Numero oggetti nello store: %s\n", buff);
 	pclose(count);
 	fflush(stderr);
 }

@@ -2,7 +2,6 @@
 #include <os_client.h>
 #include <sys/socket.h>
 #include <sys/poll.h>
-#include <errormacros.h>
 #include <fs.h>
 
 const char *ok = "OK \n";
@@ -90,11 +89,6 @@ static void os_client_handleleave(int fd, client_t *client) {
 }
 
 static void os_client_handleretrieve(int fd, client_t *client, char *filename) {
-    if (!client->name) {
-        send_ko(fd, "You're not registered");
-        return;
-    }
-
     os_read_t read_t = fs_read(client, filename);
     if (read_t.data) {
         char len[sizeof(ssize_t) + 1];
@@ -116,11 +110,6 @@ static void os_client_handleretrieve(int fd, client_t *client, char *filename) {
 }
 
 static void os_client_handledelete(int fd, client_t *client, char *filename) {
-    if (!client->name) {
-        send_ko(fd, "You're not registered");
-        return;
-    }
-
     int err = fs_delete(client, filename);
     if (err == -1) {
         char buf[128];

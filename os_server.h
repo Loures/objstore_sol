@@ -1,4 +1,4 @@
-#ifndef OS_MAIN_H
+#ifndef OS_SERVER_H
 
 	#include <stdio.h>
 	#include <stdlib.h>
@@ -6,12 +6,11 @@
 	#include <unistd.h>
 	#include <pthread.h>
 	#include <sys/types.h>
-	#include <sys/stat.h>
-	#include <sys/select.h>
 	#include <fcntl.h>
 	#include <errno.h>
 	#include <signal.h>
 	#include <linkedlist.h>
+	#include <errormacros.h>
 
 
 	extern volatile sig_atomic_t OS_RUNNING;
@@ -36,9 +35,6 @@
 
 	extern linkedlist_elem* client_list;
 
-	#define SOCKET_ADDR "/tmp/objstore.sock"
-	#define SOMAXCONN 128
-
 	#define discardsignals(sgn) \
 		{ \
 			int err = sigfillset(&sgn); \
@@ -57,6 +53,6 @@
 	#define setnonblocking(fd) fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) | O_NONBLOCK)
 	#define setblocking(fd) fcntl(fd, F_SETFL, fcntl(fd, F_GETFL) & ~O_NONBLOCK)
 		
-	#define OS_MAIN_H
+	#define OS_SERVER_H
 	
 #endif

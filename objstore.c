@@ -6,10 +6,13 @@
 #include <sys/un.h>
 #include <sys/poll.h>
 
+#define true 1
+#define false 0
+
 int objstore_fd = -1;
 size_t SO_READ_BUFFSIZE = 0;
 size_t LAST_LENGTH = 0;
-char objstore_errstr[128];
+char objstore_errstr[256];  //reasonable length for a ko message
 
 static size_t readn_polled(int fd, char *buff, size_t size) {
     size_t sizecnt = 0;
@@ -34,23 +37,16 @@ static size_t readn_polled(int fd, char *buff, size_t size) {
 }
 
 static int check_response(char *response) {
+    memset(objstore_errstr, 0, 256);
+    strcpy(objstore_errstr, response);
     char first2[2];
     strncpy(first2, response, 2);
     if (strcmp(first2, "OK") == 0) {
         free(response);
-        return 1;
+        return true;   
     }
-    memset(objstore_errstr, 0, 128);
-    strcpy(objstore_errstr, response);
     free(response);
-    return -1;
-}
-
-static char* getreply() {
-    char *buff = (char*)malloc(sizeof(char) * SO_READ_BUFFSIZE);
-    memset(buff, 0, SO_READ_BUFFSIZE);
-    recv(objstore_fd, buff, SO_READ_BUFFSIZE, 0);
-    return buff;
+    return false;
 }
 
 int os_connect (char *name) {
@@ -64,24 +60,27 @@ int os_connect (char *name) {
 	    int sockerr = connect(objstore_fd, (struct sockaddr*)&addr, sizeof(addr));
 	    if (sockerr < 0) {
 	    	err_socket(objstore_fd);
-	    	return -1;
+	    	return false;
 	    }
 
 	    ssize_t size = sizeof(size_t);
         getsockopt(objstore_fd, SOL_SOCKET, SO_RCVBUF, (void*)&SO_READ_BUFFSIZE, (socklen_t*)&size);
     }
+    char *buff = (char*)malloc(sizeof(char) * SO_READ_BUFFSIZE);
+    memset(buff, 0, SO_READ_BUFFSIZE);
 
     dprintf(objstore_fd, "REGISTER %s \n", name);
 
-    char *response = getreply();
-    return check_response(response);
+    recv(objstore_fd, buff, SO_READ_BUFFSIZE, 0);
+    return check_response(buff);
 }
 
 void *os_retrieve(char *name) {
+    if (objstore_fd < 0) return NULL;
     dprintf(objstore_fd, "RETRIEVE %s \n", name);
     fflush(NULL);
     char *buff = (char*)malloc(sizeof(char) * SO_READ_BUFFSIZE);
-    char *saveptr = (char*)malloc(sizeof(char) * SO_READ_BUFFSIZE);
+    char saveptr[SO_READ_BUFFSIZE];
     memset(buff, 0, SO_READ_BUFFSIZE);
     memset(saveptr, 0, SO_READ_BUFFSIZE);
     size_t buffsize = recv(objstore_fd, buff, SO_READ_BUFFSIZE, 0);
@@ -97,8 +96,8 @@ void *os_retrieve(char *name) {
     char *lenstr = strtok_r(NULL, " ", (char**)&saveptr);
     size_t len = atol(lenstr);
     
-    char *data = (char*)malloc(sizeof(char) * len);
-    memset(data, 0, len);
+    char *data = (char*)malloc(sizeof(char) * len + 1);     //null terminator!
+    memset(data, 0, len + 1);
 
     size_t headerlen = strlen(storecmd) + 1 + strlen(lenstr) + 3;   //1 is first space, 3 is " /n "
     if (headerlen < buffsize) memcpy(data, buff + headerlen, buffsize - headerlen);
@@ -113,6 +112,7 @@ void *os_retrieve(char *name) {
 }
 
 int os_store(char *name, void *block, size_t len) {
+    if (objstore_fd < 0) return false;
     dprintf(objstore_fd, "STORE %s %ld \n ", name, len);
     send(objstore_fd, block, len, 0);
     char *buff = (char*)malloc(sizeof(char) * SO_READ_BUFFSIZE);
@@ -122,6 +122,7 @@ int os_store(char *name, void *block, size_t len) {
 }
 
 int os_delete(char *name) {
+    if (objstore_fd < 0) return false;
     dprintf(objstore_fd, "DELETE %s \n", name);
     char *buff = (char*)malloc(sizeof(char) * SO_READ_BUFFSIZE);
     memset(buff, 0, SO_READ_BUFFSIZE);
@@ -129,12 +130,10 @@ int os_delete(char *name) {
     return check_response(buff);
 }
 
-int os_disconnect(char *name) {
+int os_disconnect() {
+    if (objstore_fd < 0) return false;
     dprintf(objstore_fd, "LEAVE \n");
-    char *buff = (char*)malloc(sizeof(char) * SO_READ_BUFFSIZE);
-    memset(buff, 0, SO_READ_BUFFSIZE);
-    recv(objstore_fd, buff, SO_READ_BUFFSIZE, 0);
     close(objstore_fd);
     objstore_fd = -1;
-    return check_response(buff);  
+    return true;
 }
