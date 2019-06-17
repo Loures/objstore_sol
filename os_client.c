@@ -63,8 +63,10 @@ static void os_client_handleregistration(int fd, client_t *client, const char *n
         send_ko(fd, "You're already registered");
         return;
     }
-        
-    if (linkedlist_search(client_list, &iter_fd_exists, (void*)name) == NULL) {
+    
+    linkedlist_elem *result = linkedlist_search(client_list, &iter_fd_exists, (void*)name);
+
+    if (!result) {
         client->name = (char*)malloc(strlen(name) + 1);     //+1 for \0 terminator
         strcpy(client->name, name);
 

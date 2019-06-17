@@ -49,10 +49,12 @@ void worker_cleanup(int fd, client_t *client, char *buffer) {
     linkedlist_iterative_remove(client_list, &iter_fd_exists, &fd);
     sync();
     close(fd);
+
     pthread_mutex_lock(&client_list_mtx);
     worker_num--;
-    pthread_mutex_unlock(&client_list_mtx);
     if (worker_num <= 0) pthread_cond_signal(&worker_num_cond);
+    pthread_mutex_unlock(&client_list_mtx);
+
 }
 
 os_msg_t *worker_handlemsg(int fd, char *buff, size_t buffsize) {

@@ -39,7 +39,8 @@ static size_t readn_polled(int fd, char *buff, size_t size) {
 static int check_response(char *response) {
     memset(objstore_errstr, 0, 256);
     strcpy(objstore_errstr, response);
-    char first2[2];
+    char first2[3];
+    memset(first2, 0, 3);
     strncpy(first2, response, 2);
     if (strcmp(first2, "OK") == 0) {
         free(response);
@@ -85,7 +86,8 @@ void *os_retrieve(char *name) {
     memset(saveptr, 0, SO_READ_BUFFSIZE);
     size_t buffsize = recv(objstore_fd, buff, SO_READ_BUFFSIZE, 0);
     
-    char isok[4];
+    char isok[5];
+    memset(isok, 0, 5);
     strncpy(isok, buff, 4);
     if (strcmp(isok, "DATA") != 0) {
         check_response(buff);
