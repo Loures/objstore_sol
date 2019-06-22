@@ -2,9 +2,12 @@
 #include <stdio.h>
 #include <objstore.h>
 #include <errormacros.h>
+#include <signal.h>
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/poll.h>
+
+typedef void (*sighandler_t)(int);
 
 #define true 1
 #define false 0
@@ -12,6 +15,7 @@
 int objstore_fd = -1;
 size_t SO_READ_BUFFSIZE = 0;
 size_t LAST_LENGTH = 0;
+sighandler_t prevsignal;
 char objstore_errstr[256];  //reasonable length for a ko message
 
 static size_t readn_polled(int fd, char *buff, size_t size) {
@@ -56,6 +60,12 @@ int os_connect (char *name) {
 	    memset(&addr, 0, sizeof(struct sockaddr_un));
 	    strncpy(addr.sun_path, SOCKET_ADDR, sizeof(addr.sun_path) - 1);
 	    addr.sun_family = AF_UNIX;
+
+        prevsignal = signal(SIGPIPE, SIG_IGN);
+        if (prevsignal == SIG_ERR) {
+            err_signal()
+            return false;
+        }
 
 	    objstore_fd = socket(AF_UNIX, SOCK_STREAM, 0);
 	    int sockerr = connect(objstore_fd, (struct sockaddr*)&addr, sizeof(addr));
@@ -137,5 +147,10 @@ int os_disconnect() {
     dprintf(objstore_fd, "LEAVE \n");
     close(objstore_fd);
     objstore_fd = -1;
+    sighandler_t result = signal(SIGPIPE, prevsignal);
+    if (result == SIG_ERR) {
+        err_signal()
+        return false;
+    }
     return true;
 }

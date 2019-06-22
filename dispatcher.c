@@ -22,11 +22,33 @@ void dispatcher_cleanup() {
 }
 
 
+static void stats() {
+	fflush(stderr);
+	fprintf(stderr, "\nOBJSTORE: Numero client connessi: %d\n", worker_num);
+	FILE *size = popen("du -s --apparent-size ./data | cut -f1", "r");
+	char buff[128];
+	memset(buff, 0, 128);
+	fgets(buff, 128, size);
+	fprintf(stderr, "OBJSTORE: Dimensione totale store: %s", buff);
+	pclose(size);
+	FILE *count = popen("ls data/*/* 2> /dev/null | wc -w", "r");
+	memset(buff, 0, 128);
+	fgets(buff, 128, count);
+	fprintf(stderr, "OBJSTORE: Numero oggetti nello store: %s\n", buff);
+	pclose(count);
+	fflush(stderr);
+}
+
+
 void *dispatch(void *arg) {
     struct pollfd pollfds[1];
     pollfds[0] = (struct pollfd){os_serverfd, POLLIN, 0};
 
     while(OS_RUNNING) {
+        if (PRINT_STATS) {
+            stats();
+            PRINT_STATS = 0;
+        }
         int ev = poll(pollfds, 1, 10);    //poll socket file descriptor
         if (ev < 0) err_select(os_serverfd);
         if (ev == 1 && (pollfds[0].revents & POLLIN)) {   //checks if we have a pending connection and creates client shiet;

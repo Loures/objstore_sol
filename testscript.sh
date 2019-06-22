@@ -32,3 +32,5 @@ for line in $(tail -20 <<< "$WORDS"); do
     testclient $line 3 &
 done
 wait
+
+pkill -USR1 os_server

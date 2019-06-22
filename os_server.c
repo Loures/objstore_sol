@@ -13,6 +13,7 @@ size_t SO_READ_BUFFSIZE = 0;
 size_t SO_WRITE_BUFFSIZE = 0;
 
 volatile sig_atomic_t OS_RUNNING = 1;
+volatile sig_atomic_t PRINT_STATS = 0;
 static sigset_t sigmask;
 static int waited_sig = 0;
 int os_serverfd;
@@ -20,23 +21,6 @@ int VERBOSE = 0;
 volatile int worker_num = 0;
 pthread_mutex_t client_list_mtx = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t worker_num_cond = PTHREAD_COND_INITIALIZER;
-
-static void stats() {
-	fflush(stderr);
-	fprintf(stderr, "\nOBJSTORE: Numero client connessi: %d\n", worker_num);
-	FILE *size = popen("du -s --apparent-size ./data | cut -f1", "r");
-	char buff[128];
-	memset(buff, 0, 128);
-	fgets(buff, 128, size);
-	fprintf(stderr, "OBJSTORE: Dimensione totale store: %s", buff);
-	pclose(size);
-	FILE *count = popen("ls data/*/* 2> /dev/null | wc -w", "r");
-	memset(buff, 0, 128);
-	fgets(buff, 128, count);
-	fprintf(stderr, "OBJSTORE: Numero oggetti nello store: %s\n", buff);
-	pclose(count);
-	fflush(stderr);
-}
 
 static void _handler(int sig) {
 	switch (sig) {
@@ -58,7 +42,7 @@ static void _handler(int sig) {
 			break;
 		
 		case SIGUSR1:
-			stats();
+			PRINT_STATS = 1;
 			sigemptyset(&sigmask);			//SIGUSR1 doesnt terminate the process so we must be able to wait for another signal
 			sigaddset(&sigmask, SIGINT);
 			sigaddset(&sigmask, SIGTERM);
