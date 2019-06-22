@@ -15,9 +15,7 @@ void dispatcher_cleanup() {
     if (err < 0) err_close(os_serverfd);
     err = unlink(SOCKET_ADDR);
     if (err < 0) err_unlink(SOCKET_ADDR); 
-    if (VERBOSE) {
-        fprintf(stderr, "OBJSTORE: %s succesfully unlinked\n", SOCKET_ADDR);
-    }
+    if (VERBOSE) fprintf(stderr, "OBJSTORE: %s succesfully unlinked\n", SOCKET_ADDR);
     linkedlist_free(client_list);
 }
 
@@ -54,8 +52,7 @@ void *dispatch(void *arg) {
         if (ev == 1 && (pollfds[0].revents & POLLIN)) {   //checks if we have a pending connection and creates client shiet;
             int client_fd = accept(os_serverfd, NULL, NULL);
 
-            client_t *new_client = (client_t*)malloc(sizeof(client_t));
-            memset(new_client, 0, sizeof(client_t));    //zero client_t structure
+            client_t *new_client = (client_t*)calloc(1, sizeof(client_t));
 
             new_client->name = NULL;
             new_client->socketfd = client_fd;

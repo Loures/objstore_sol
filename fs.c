@@ -8,9 +8,7 @@ void fs_init() {
     int err = mkdir(DATA_PATH, S_IRWXU | S_IRGRP | S_IROTH);    //rwxr--r--
     if (err < 0 && errno != EEXIST) err_mkdir("data") 
     else {
-        if (VERBOSE && errno != EEXIST) {
-            fprintf(stderr, "OBJSTORE: Data directory created\n");
-        }
+        if (VERBOSE && errno != EEXIST) fprintf(stderr, "OBJSTORE: Data directory created\n");
     }
 }
 
@@ -36,9 +34,7 @@ int fs_write(client_t *client, char *filename, size_t len, char *data) {
         return -1;
     }
     close(fd);
-    if (VERBOSE) {
-        fprintf(stderr, "OBJSTORE: Wrote %ld bytes to file \"%s\"\n", wlen, path);
-    }
+    if (VERBOSE) fprintf(stderr, "OBJSTORE: Wrote %ld bytes to file \"%s\"\n", wlen, path);
     return 0;
 }
 
@@ -50,9 +46,7 @@ int fs_delete(client_t *client, char *filename) {
         err_unlink(filename);
         return -1;
     }
-    if (VERBOSE) {
-        fprintf(stderr, "OBJSTORE: Deleted file \"%s\"\n", path);
-    }
+    if (VERBOSE) fprintf(stderr, "OBJSTORE: Deleted file \"%s\"\n", path);
     return 0;
 }
 
@@ -72,9 +66,7 @@ os_read_t fs_read(client_t *client, char *filename) {
         err_write(fd);
         return (os_read_t){NULL, 0};
     }
-    if (VERBOSE) {
-        fprintf(stderr, "OBJSTORE: Read %ld bytes from file \"%s\"\n", len, path);
-    }
+    if (VERBOSE) fprintf(stderr, "OBJSTORE: Read %ld bytes from file \"%s\"\n", len, path);
     close(fd);
     return (os_read_t){buff, (ssize_t)(statbuf.st_size)};
     //remember to free dis shit;

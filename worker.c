@@ -3,7 +3,6 @@
 #include <sys/socket.h>
 #include <os_client.h>
 
-void sync(void);	//the compiler complaints about implicit decleration otherwise
 
 typedef struct buffer_t {
     char *data;
@@ -20,9 +19,6 @@ static int iter_fd_exists(const void *ptr, void *arg) {
 static size_t readn_polled(int fd, char *buff, size_t size) {
     size_t sizecnt = 0;
 
-    struct pollfd pollfds[1];
-    pollfds[0] = (struct pollfd){fd, POLLIN, 0};
-    
     while(size > 0) {
         ssize_t len = recv(fd, buff + sizecnt, SO_READ_BUFFSIZE, 0);
         if (len < 0) err_read(fd);
@@ -33,9 +29,7 @@ static size_t readn_polled(int fd, char *buff, size_t size) {
 }
 
 void worker_cleanup(int fd, client_t *client, char *buffer) {
-    if (VERBOSE) {
-        fprintf(stderr, "OBJSTORE: Cleaned up worker thread %ld\n", pthread_self());
-    }
+    if (VERBOSE) fprintf(stderr, "OBJSTORE: Cleaned up worker thread %ld\n", pthread_self());
     free(buffer);
     if (client->name) free(client->name);
     linkedlist_iterative_remove(client_list, &iter_fd_exists, &fd);
@@ -49,8 +43,7 @@ void worker_cleanup(int fd, client_t *client, char *buffer) {
 }
 
 os_msg_t *worker_handlemsg(int fd, char *buff, size_t buffsize) {
-    os_msg_t *msg = (os_msg_t*)malloc(sizeof(os_msg_t));
-    memset(msg, 0, sizeof(os_msg_t));
+    os_msg_t *msg = (os_msg_t*)calloc(1, sizeof(os_msg_t));
 
     if (buffsize <= 0) return msg;
 
@@ -74,8 +67,7 @@ os_msg_t *worker_handlemsg(int fd, char *buff, size_t buffsize) {
     
     if (newline && newline[0] == '\n') {
         size_t headerlen = strlen(cmd) + 1 + strlen(name) + 1 + strlen(len) + 3;    //command name len \n data 
-        msg->data = (char*)malloc(sizeof(char) * (msg->len));   
-        memset(msg->data, 0, sizeof(char) * (msg->len));
+        msg->data = (char*)calloc(msg->len, sizeof(char));   
         if (headerlen < buffsize) memcpy(msg->data, buff + headerlen, buffsize - headerlen);
         //handle more data
         if (msg->len > buffsize - headerlen) readn_polled(fd, msg->data + (buffsize - headerlen), msg->len - (buffsize - headerlen));
@@ -89,18 +81,11 @@ void *worker_loop(void *ptr) {
     client_t *client = (client_t*)ptr;
     client->worker = pthread_self();
 
-    if (VERBOSE) {
-       fprintf(stderr, "OBJSTORE: Client connected on socket %d using thread %ld\n", client->socketfd, pthread_self());
-    }
+    if (VERBOSE) fprintf(stderr, "OBJSTORE: Client connected on socket %d using thread %ld\n", client->socketfd, pthread_self());
     
     int client_socketfd = client->socketfd;     //store socket fd on stack (faster access)
 
-    struct pollfd pollfds[1];
-    pollfds[0] = (struct pollfd){client_socketfd, POLLIN, 0};
-
-    char *buffer = (char*)malloc(sizeof(char) * SO_READ_BUFFSIZE);
-    memset(buffer, 0, SO_READ_BUFFSIZE);
-
+    char *buffer = (char*)calloc(SO_READ_BUFFSIZE, sizeof(char));
 
     while(OS_RUNNING && client->running == 1) {
         size_t len = recv(client_socketfd, buffer, SO_READ_BUFFSIZE, 0);
@@ -110,9 +95,7 @@ void *worker_loop(void *ptr) {
         }
         free_os_msg(msg);
         if (len <= 0) {     //our client has shut itself down without disconnecting
-            if (VERBOSE) {
-                fprintf(stderr, "OBJSTORE: Client on socket %d has terminated without disconnecting\n", client_socketfd);
-            }
+            if (VERBOSE) fprintf(stderr, "OBJSTORE: Client on socket %d has terminated without disconnecting\n", client_socketfd);
             break;
         }
     } 

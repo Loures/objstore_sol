@@ -64,9 +64,7 @@ static void os_client_handleregistration(int fd, client_t *client, const char *n
 
         fs_mkdir(client);
 
-        if (VERBOSE) {
-            fprintf(stderr, "OBJSTORE: Client registered as %s\n", client->name);
-        }
+        if (VERBOSE) fprintf(stderr, "OBJSTORE: Client registered as %s\n", client->name);
 
         send_ok(fd);
     } else send_ko(fd, "Username already exists");
@@ -89,8 +87,7 @@ static void os_client_handleretrieve(int fd, client_t *client, char *filename) {
         memset(len, 0, sizeof(ssize_t) + 1);
         sprintf(len, "%ld", read_t.size);
         ssize_t response_len = strlen(retrieve) + strlen(len) + 3 + read_t.size;
-        char *response = (char*)malloc(sizeof(char) * (response_len));   //3 -> space newline space
-        memset(response, 0, response_len);
+        char *response = (char*)calloc(response_len, sizeof(char));   //3 -> space newline space
         sprintf(response, "DATA %s \n ", len);
         memcpy(response + (strlen(retrieve) + strlen(len) + 3), read_t.data, read_t.size);
         writen_polled(fd, response, response_len);

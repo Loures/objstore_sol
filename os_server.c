@@ -6,6 +6,8 @@
 
 #define SOCKET_ADDR "/tmp/objstore.sock"
 
+void sync(void);	//the compiler complaints about implicit decleration otherwise
+
 sigset_t nosignal;
 linkedlist_elem *client_list = NULL;
 
@@ -25,18 +27,14 @@ pthread_cond_t worker_num_cond = PTHREAD_COND_INITIALIZER;
 static void _handler(int sig) {
 	switch (sig) {
 		case SIGTERM:
-			if (VERBOSE) {
-				fprintf(stderr, "OBJSTORE: Received SIGTERM\n");
-			}
+			if (VERBOSE) fprintf(stderr, "OBJSTORE: Received SIGTERM\n");
 			//linkedlist_free(client_list);
 			OS_RUNNING = 0;
 			
 			break;
 
 		case SIGINT:
-			if (VERBOSE) {
-				fprintf(stderr, "OBJSTORE: Received SIGINT\n");
-			}
+			if (VERBOSE) fprintf(stderr, "OBJSTORE: Received SIGINT\n");
 			//linkedlist_free(client_list);
 			OS_RUNNING = 0;
 			break;
@@ -91,9 +89,7 @@ int main(int argc, char *argv[]) {
 	err = bind(os_serverfd, (const struct sockaddr*)&socket_address, sizeof(socket_address));      //bind the socket
     if (err < 0) err_socket(os_serverfd);
     
-    if (VERBOSE) { 
-        fprintf(stderr, "OBJSTORE: Server socket bound to %s\n", socket_address.sun_path); 
-    }
+    if (VERBOSE) fprintf(stderr, "OBJSTORE: Server socket bound to %s\n", socket_address.sun_path); 
 
     setnonblocking(os_serverfd);   //non blocking socket
     listen(os_serverfd, SOMAXCONN);    //listen mode
@@ -110,7 +106,9 @@ int main(int argc, char *argv[]) {
 	_handler(waited_sig);
 
 	pthread_join(dispatcher_thread, NULL);
+	if (VERBOSE) fprintf(stderr, "OBJSTORE: Syncing writes...\n");
 	sync();
+	if (VERBOSE) fprintf(stderr, "OBJSTORE: Writes synced\n");
 	return 0;
 
 }
