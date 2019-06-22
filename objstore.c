@@ -28,7 +28,7 @@ static size_t readn_polled(int fd, char *buff, size_t size) {
         if (ready < 0) err_select(fd);
 
         if (ready == 1 && pollfds[0].revents & POLLIN) {
-            ssize_t len = recv(fd, buff + sizecnt, size, 0);
+            ssize_t len = recv(fd, buff + sizecnt, SO_READ_BUFFSIZE, 0);
             if (len <= 0) {
                 if (len < 0) err_read(fd);
                 return -1;

@@ -24,18 +24,10 @@ static size_t readn_polled(int fd, char *buff, size_t size) {
     pollfds[0] = (struct pollfd){fd, POLLIN, 0};
     
     while(size > 0) {
-        int ready = poll(pollfds, 1, 10);
-        if (ready < 0) err_select(fd);
-
-        if (ready == 1 && pollfds[0].revents & POLLIN) {
-            ssize_t len = recv(fd, buff + sizecnt, size, 0);
-            if (len <= 0) {
-                if (len < 0) err_read(fd);
-                return -1;
-            }
-            size = size - len;
-            sizecnt = sizecnt + len;
-        }
+        ssize_t len = recv(fd, buff + sizecnt, SO_READ_BUFFSIZE, 0);
+        if (len < 0) err_read(fd);
+        size = size - len;
+        sizecnt = sizecnt + len;
     }
     return sizecnt;
 }
@@ -47,7 +39,6 @@ void worker_cleanup(int fd, client_t *client, char *buffer) {
     free(buffer);
     if (client->name) free(client->name);
     linkedlist_iterative_remove(client_list, &iter_fd_exists, &fd);
-    sync();
     close(fd);
 
     pthread_mutex_lock(&client_list_mtx);
@@ -110,27 +101,21 @@ void *worker_loop(void *ptr) {
     char *buffer = (char*)malloc(sizeof(char) * SO_READ_BUFFSIZE);
     memset(buffer, 0, SO_READ_BUFFSIZE);
 
-    setnonblocking(client_socketfd);
 
     while(OS_RUNNING && client->running == 1) {
-        int ev = poll(pollfds, 1, 10);
-        if (ev < 0) err_select(client_socketfd);
-
-        if (ev == 1 && (pollfds[0].revents & POLLIN)) {
-            size_t len = recv(client_socketfd, buffer, SO_READ_BUFFSIZE, 0);
-            os_msg_t *msg = worker_handlemsg(client_socketfd, buffer, len);
-            if (msg->cmd) {
-                os_client_commandhandler(client_socketfd, client, msg);
+        size_t len = recv(client_socketfd, buffer, SO_READ_BUFFSIZE, 0);
+        os_msg_t *msg = worker_handlemsg(client_socketfd, buffer, len);
+        if (msg->cmd) {
+            os_client_commandhandler(client_socketfd, client, msg);
+        }
+        free_os_msg(msg);
+        if (len <= 0) {     //our client has shut itself down without disconnecting
+            if (VERBOSE) {
+                fprintf(stderr, "OBJSTORE: Client on socket %d has terminated without disconnecting\n", client_socketfd);
             }
-            free_os_msg(msg);
-            if (len <= 0) {     //our client has shut itself down without disconnecting
-                if (VERBOSE) {
-                    fprintf(stderr, "OBJSTORE: Client on socket %d has terminated without disconnecting\n", client_socketfd);
-                }
-                break;
-            }
-        } 
-    }
+            break;
+        }
+    } 
     worker_cleanup(client_socketfd, client, buffer);
     pthread_detach(pthread_self());
     return NULL;

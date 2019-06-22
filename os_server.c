@@ -110,5 +110,7 @@ int main(int argc, char *argv[]) {
 	_handler(waited_sig);
 
 	pthread_join(dispatcher_thread, NULL);
+	sync();
+	return 0;
 
 }

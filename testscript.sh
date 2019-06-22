@@ -20,8 +20,8 @@ function testclient {
 
 for line in $WORDS; do 
     testclient $line 1 &  
+    wait
 done
-wait
 
 for line in $(head -30 <<< "$WORDS"); do 
     testclient $line 2 &

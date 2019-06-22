@@ -20,23 +20,15 @@ static int getcommand(os_msg_t *msg) {
 
 static size_t writen_polled(int fd, char *buff, size_t size) {
     size_t sizecnt = 0;
-
-    struct pollfd pollfds[1];
-    pollfds[0] = (struct pollfd){fd, POLLOUT, 0};
     
     while(size > 0) {
-        int ready = poll(pollfds, 1, 10);
-        if (ready < 0) err_select(fd);
-
-        if (ready == 1 && pollfds[0].revents & POLLOUT) {
-            ssize_t len = send(fd, buff + sizecnt, size, 0);
-            if (len <= 0) {
-                if (len < 0) err_write(fd);
-                return -1;
-            }
-            size = size - len;
-            sizecnt = sizecnt + len;
+        ssize_t len = send(fd, buff + sizecnt, size, 0);
+        if (len <= 0) {
+            if (len < 0) err_write(fd);
+            return -1;
         }
+        size = size - len;
+        sizecnt = sizecnt + len;
     }
     return sizecnt;
 }
