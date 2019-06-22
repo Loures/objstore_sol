@@ -18,7 +18,7 @@ static int getcommand(os_msg_t *msg) {
     return -1;
 }
 
-static size_t writen_polled(int fd, char *buff, size_t size) {
+static size_t writen(int fd, char *buff, size_t size) {
     size_t sizecnt = 0;
     
     while(size > 0) {
@@ -90,7 +90,7 @@ static void os_client_handleretrieve(int fd, client_t *client, char *filename) {
         char *response = (char*)calloc(response_len, sizeof(char));   //3 -> space newline space
         sprintf(response, "DATA %s \n ", len);
         memcpy(response + (strlen(retrieve) + strlen(len) + 3), read_t.data, read_t.size);
-        writen_polled(fd, response, response_len);
+        writen(fd, response, response_len);
         free(response);
         free(read_t.data);
     } else {

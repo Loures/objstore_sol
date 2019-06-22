@@ -3,7 +3,6 @@
 #include <sys/socket.h>
 #include <os_client.h>
 
-
 typedef struct buffer_t {
     char *data;
     size_t size;
@@ -16,7 +15,7 @@ static int iter_fd_exists(const void *ptr, void *arg) {
     return 0;
 }
 
-static size_t readn_polled(int fd, char *buff, size_t size) {
+static size_t readn(int fd, char *buff, size_t size) {
     size_t sizecnt = 0;
 
     while(size > 0) {
@@ -70,7 +69,7 @@ os_msg_t *worker_handlemsg(int fd, char *buff, size_t buffsize) {
         msg->data = (char*)calloc(msg->len, sizeof(char));   
         if (headerlen < buffsize) memcpy(msg->data, buff + headerlen, buffsize - headerlen);
         //handle more data
-        if (msg->len > buffsize - headerlen) readn_polled(fd, msg->data + (buffsize - headerlen), msg->len - (buffsize - headerlen));
+        if (msg->len > buffsize - headerlen) readn(fd, msg->data + (buffsize - headerlen), msg->len - (buffsize - headerlen));
     }
 
     memset(buff, 0, SO_READ_BUFFSIZE);

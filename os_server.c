@@ -106,9 +106,9 @@ int main(int argc, char *argv[]) {
 	_handler(waited_sig);
 
 	pthread_join(dispatcher_thread, NULL);
-	if (VERBOSE) fprintf(stderr, "OBJSTORE: Syncing writes...\n");
-	sync();
-	if (VERBOSE) fprintf(stderr, "OBJSTORE: Writes synced\n");
+	//if (VERBOSE) fprintf(stderr, "OBJSTORE: Syncing writes...\n");
+	//sync();
+	//if (VERBOSE) fprintf(stderr, "OBJSTORE: Writes synced\n");
 	return 0;
 
 }

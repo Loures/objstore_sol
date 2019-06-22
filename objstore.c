@@ -18,7 +18,7 @@ size_t LAST_LENGTH = 0;
 sighandler_t prevsignal;
 char objstore_errstr[256];  //reasonable length for a ko message
 
-static size_t readn_polled(int fd, char *buff, size_t size) {
+static size_t readn(int fd, char *buff, size_t size) {
     size_t sizecnt = 0;
 
     struct pollfd pollfds[1];
@@ -112,7 +112,7 @@ void *os_retrieve(char *name) {
     if (headerlen < buffsize) memcpy(data, buff + headerlen, buffsize - headerlen);
     
     //handle more data
-    if (len > buffsize - headerlen) readn_polled(objstore_fd, data + (buffsize - headerlen), len - (buffsize - headerlen));
+    if (len > buffsize - headerlen) readn(objstore_fd, data + (buffsize - headerlen), len - (buffsize - headerlen));
     
     LAST_LENGTH = len;
     
