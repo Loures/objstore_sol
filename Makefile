@@ -31,6 +31,9 @@ os_server: $(SRV_OBJECTS)
 
 all: os_server libobjstore.a test interactive
 
+dotest:
+	@$(RM) -r data/*
+	@./testscript.sh
 
 clean:
 	$(RM) ./*.o ./os_server test interactive libobjstore.a

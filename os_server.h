@@ -14,8 +14,8 @@
 
 
 	extern volatile sig_atomic_t OS_RUNNING;
-	extern volatile sig_atomic_t PRINT_STATS;
 	extern int os_serverfd;
+	extern int os_signalfd[];
 	
 	extern int VERBOSE;
 

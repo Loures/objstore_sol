@@ -39,16 +39,16 @@ static void stats() {
 
 
 void *dispatch(void *arg) {
-    struct pollfd pollfds[1];
+    struct pollfd pollfds[2];
     pollfds[0] = (struct pollfd){os_serverfd, POLLIN, 0};
+    pollfds[1] = (struct pollfd){os_signalfd[0], POLLIN, 0};
+
+    char empty[1];
 
     while(OS_RUNNING) {
-        if (PRINT_STATS) {
-            stats();
-            PRINT_STATS = 0;
-        }
-        int ev = poll(pollfds, 1, 10);    //poll socket file descriptor
+        int ev = poll(pollfds, 2, 10);    //poll socket file descriptor
         if (ev < 0) err_select(os_serverfd);
+
         if (ev == 1 && (pollfds[0].revents & POLLIN)) {   //checks if we have a pending connection and creates client shiet;
             int client_fd = accept(os_serverfd, NULL, NULL);
 
@@ -69,6 +69,12 @@ void *dispatch(void *arg) {
 
             pthread_create(wk, NULL, &worker_loop, (void*)new_client);
         }
+
+        if (ev == 1 && (pollfds[1].revents & POLLIN)) {
+            read(os_signalfd[0], &empty, 1);
+            stats();
+        }
+        
     }
     pthread_mutex_lock(&client_list_mtx);
     while (worker_num > 0) {

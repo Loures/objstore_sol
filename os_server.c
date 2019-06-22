@@ -14,8 +14,9 @@ linkedlist_elem *client_list = NULL;
 size_t SO_READ_BUFFSIZE = 0;
 size_t SO_WRITE_BUFFSIZE = 0;
 
+int os_signalfd[2];
+
 volatile sig_atomic_t OS_RUNNING = 1;
-volatile sig_atomic_t PRINT_STATS = 0;
 static sigset_t sigmask;
 static int waited_sig = 0;
 int os_serverfd;
@@ -23,6 +24,8 @@ int VERBOSE = 0;
 volatile int worker_num = 0;
 pthread_mutex_t client_list_mtx = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t worker_num_cond = PTHREAD_COND_INITIALIZER;
+
+const char *one = "1";
 
 static void _handler(int sig) {
 	switch (sig) {
@@ -40,7 +43,7 @@ static void _handler(int sig) {
 			break;
 		
 		case SIGUSR1:
-			PRINT_STATS = 1;
+			write(os_signalfd[1], one, 1);
 			sigemptyset(&sigmask);			//SIGUSR1 doesnt terminate the process so we must be able to wait for another signal
 			sigaddset(&sigmask, SIGINT);
 			sigaddset(&sigmask, SIGTERM);
@@ -98,6 +101,8 @@ int main(int argc, char *argv[]) {
 
 	pthread_create(&dispatcher_thread, NULL, &dispatch, NULL);
 	
+	err = pipe(os_signalfd);
+
 	sigemptyset(&sigmask);
 	sigaddset(&sigmask, SIGINT);
 	sigaddset(&sigmask, SIGTERM);
