@@ -18,7 +18,7 @@ char *repeat_str(int n) {
 int test1() {
     if (!os_store("Object1", test_str, test_strlen)) {
         #ifdef ERRSTR 
-            printf(objstore_errstr);
+            printf("%s", ERRSTR);
         #endif
         return !os_disconnect();
     }
@@ -30,7 +30,7 @@ int test1() {
         if (!os_store(name, str, i * test_strlen * 55)) {
             free(str);
             #ifdef ERRSTR 
-                printf(objstore_errstr);
+                printf("%s", ERRSTR);
             #endif
             return !os_disconnect();
         }
@@ -40,7 +40,7 @@ int test1() {
     if (!os_store("Object20", str, 1000 * test_strlen)) {
             free(str);
             #ifdef ERRSTR 
-                printf(objstore_errstr);
+                printf("%s", ERRSTR);
             #endif
             return !os_disconnect();
     }
@@ -53,7 +53,7 @@ int test2() {
     char *str_first = os_retrieve("Object1");
     if (!(str_first && strlen(str_first) == 100)) {
         #ifdef ERRSTR
-            printf(objstore_errstr);
+            printf("%s", ERRSTR);
         #endif
         free(str_first);
         return !os_disconnect();
@@ -66,7 +66,7 @@ int test2() {
         char *str = os_retrieve(name);
         if (!(str && strlen(str) == (i - 1) * test_strlen * 55)) {
             #ifdef ERRSTR
-                printf(objstore_errstr);
+                printf("%s", ERRSTR);
             #endif
             free(str);
             return !os_disconnect();
@@ -76,7 +76,7 @@ int test2() {
     char *str_last = os_retrieve("Object20");
     if (!(str_last && strlen(str_last) == 100000)) {
         #ifdef ERRSTR
-            printf(objstore_errstr);
+            printf("%s", ERRSTR);
         #endif
         free(str_last);
         return !os_disconnect();
@@ -92,7 +92,7 @@ int test3() {
         sprintf(name, "Object%d", i);
         if (!os_delete(name)) {
             #ifdef ERRSTR
-                printf(objstore_errstr);
+                printf("%s", ERRSTR);
             #endif
             return !os_disconnect();
         };
