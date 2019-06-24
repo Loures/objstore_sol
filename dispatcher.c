@@ -23,16 +23,16 @@ void dispatcher_cleanup() {
 static void stats() {
 	fflush(stderr);
 	fprintf(stderr, "\nOBJSTORE: Numero client connessi: %d\n", worker_num);
-	FILE *size = popen("du -s --apparent-size ./data | cut -f1", "r");
+	FILE *size = popen("du -cbs --apparent-size data/*/* 2> /dev/null | tail -1 | cut -f1 ", "r");
 	char buff[128];
 	memset(buff, 0, 128);
 	fgets(buff, 128, size);
-	fprintf(stderr, "OBJSTORE: Dimensione totale store: %s", buff);
+	fprintf(stderr, "OBJSTORE: Dimensione totale store: %ld bytes\n", atol(buff));
 	pclose(size);
 	FILE *count = popen("ls data/*/* 2> /dev/null | wc -w", "r");
 	memset(buff, 0, 128);
 	fgets(buff, 128, count);
-	fprintf(stderr, "OBJSTORE: Numero oggetti nello store: %s\n", buff);
+	fprintf(stderr, "OBJSTORE: Numero oggetti nello store: %ld\n", atol(buff));
 	pclose(count);
 	fflush(stderr);
 }

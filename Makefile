@@ -20,16 +20,13 @@ fs.o: fs.c fs.h
 os_client.o: os_client.c os_client.h
 	$(CC) $(CFLAGS) $(LDFLAGS)  $(CPPFLAGS) -c $< -o $@
 
-test: test.c libobjstore.a
+client: client.c libobjstore.a
 	$(CC) $(CFLAGS) $(LDFLAGS)  $(CPPFLAGS) $< -o $@ -l$(LIBNAME)
-
-#sakuraba: sakuraba.c libobjstore.a
-#	$(CC) $(CFLAGS) $(LDFLAGS)  -lreadline $(CPPFLAGS) $< -o $@ -l$(LIBNAME)
 
 os_server: $(SRV_OBJECTS)
 	$(CC) $(CFLAGS) -O3 $(LDFLAGS) $(CPPFLAGS) $(SRV_OBJECTS) -o $@ -lpthread
 
-all: os_server libobjstore.a test #sakuraba
+all: os_server libobjstore.a client #sakuraba
 
 dotest:
 	@$(RM) -r data/*
