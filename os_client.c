@@ -5,7 +5,6 @@
 #include <fs.h>
 
 const char *ok = "OK \n";
-const char *retrieve = "DATA ";
 
 static int getcommand(os_msg_t *msg) {
     if (msg->cmd) {
@@ -16,21 +15,6 @@ static int getcommand(os_msg_t *msg) {
         if (strcmp(msg->cmd, "LEAVE") == 0) return OS_CLIENT_LEAVE;
     }
     return -1;
-}
-
-static size_t writen(int fd, char *buff, size_t size) {
-    size_t sizecnt = 0;
-    
-    while(size > 0) {
-        ssize_t len = send(fd, buff + sizecnt, size, 0);
-        if (len <= 0) {
-            if (len < 0) err_write(fd);
-            return -1;
-        }
-        size = size - len;
-        sizecnt = sizecnt + len;
-    }
-    return sizecnt;
 }
 
 static int iter_fd_exists(const void *ptr, void *arg) {
@@ -81,19 +65,7 @@ static void os_client_handleleave(int fd, client_t *client) {
 }
 
 static void os_client_handleretrieve(int fd, client_t *client, char *filename) {
-    os_read_t read_t = fs_read(client, filename);
-    if (read_t.data) {
-        char len[sizeof(ssize_t) + 1];
-        memset(len, 0, sizeof(ssize_t) + 1);
-        sprintf(len, "%ld", read_t.size);
-        ssize_t response_len = strlen(retrieve) + strlen(len) + 3 + read_t.size;
-        char *response = (char*)calloc(response_len, sizeof(char));   //3 -> space newline space
-        sprintf(response, "DATA %s \n ", len);
-        memcpy(response + (strlen(retrieve) + strlen(len) + 3), read_t.data, read_t.size);
-        writen(fd, response, response_len);
-        free(response);
-        free(read_t.data);
-    } else {
+    if (!fs_read(fd, client, filename)) {
         char buf[128];
         strerror_r(errno, buf, 128);
         send_ko(fd, buf);
@@ -109,12 +81,12 @@ static void os_client_handledelete(int fd, client_t *client, char *filename) {
     } else send_ok(fd);
 }
 
-static void os_client_handlestore(int fd, client_t *client, char *filename, char *data, size_t len) {
+static void os_client_handlestore(int fd, client_t *client, char *filename, char *data, size_t len, size_t datalen) {
     if (!client->name) {
         send_ko(fd, "You're not registered");
         return;
     }
-    int err = fs_write(client, filename, len, data);
+    int err = fs_write(fd, client, filename, len, data, datalen);
     if (err == -1) {
         char buf[128];
         strerror_r(errno, buf, 128);
@@ -131,7 +103,7 @@ int os_client_commandhandler(int fd, client_t *client, os_msg_t *msg) {
             return 0;
             break;
         case OS_CLIENT_STORE: 
-            os_client_handlestore(fd, client, msg->name, msg->data, msg->len);
+            os_client_handlestore(fd, client, msg->name, msg->data, msg->len, msg->datalen);
             return 0;
             break;
         case OS_CLIENT_RETRIEVE: 

@@ -15,21 +15,9 @@ static int iter_fd_exists(const void *ptr, void *arg) {
     return 0;
 }
 
-static size_t readn(int fd, char *buff, size_t size) {
-    size_t sizecnt = 0;
-
-    while(size > 0) {
-        ssize_t len = recv(fd, buff + sizecnt, SO_READ_BUFFSIZE, 0);
-        if (len < 0) err_read(fd);
-        size = size - len;
-        sizecnt = sizecnt + len;
-    }
-    return sizecnt;
-}
-
-void worker_cleanup(int fd, client_t *client, char *buffer) {
+void worker_cleanup(int fd, client_t *client) {
     if (VERBOSE) fprintf(stderr, "OBJSTORE: Cleaned up worker thread %ld\n", pthread_self());
-    free(buffer);
+    //free(buffer);
     if (client->name) free(client->name);
     linkedlist_iterative_remove(client_list, &iter_fd_exists, &fd);
     close(fd);
@@ -46,11 +34,14 @@ os_msg_t *worker_handlemsg(int fd, char *buff, size_t buffsize) {
 
     if (buffsize <= 0) return msg;
 
+
     char *saveptr;
     char *cmd = strtok_r(buff, " ", &saveptr);
     char *name = strtok_r(NULL, " ", &saveptr);
     char *len = strtok_r(NULL, " ", &saveptr);
     char *newline = strtok_r(NULL, " ", &saveptr);
+
+    msg->datalen = 0;
 
     if (cmd) {
         msg->cmd = (char*)malloc(sizeof(char) * (strlen(cmd) + 1));     //there's always a cmd
@@ -67,9 +58,10 @@ os_msg_t *worker_handlemsg(int fd, char *buff, size_t buffsize) {
     if (newline && newline[0] == '\n') {
         size_t headerlen = strlen(cmd) + 1 + strlen(name) + 1 + strlen(len) + 3;    //command name len \n data 
         msg->data = (char*)calloc(msg->len, sizeof(char));   
-        if (headerlen < buffsize) memcpy(msg->data, buff + headerlen, buffsize - headerlen);
-        //handle more data
-        if (msg->len > buffsize - headerlen) readn(fd, msg->data + (buffsize - headerlen), msg->len - (buffsize - headerlen));
+        if (headerlen < buffsize) {
+            memcpy(msg->data, buff + headerlen, buffsize - headerlen);
+            msg->datalen = buffsize - headerlen;    
+        }
     }
 
     memset(buff, 0, SO_READ_BUFFSIZE);
@@ -84,11 +76,12 @@ void *worker_loop(void *ptr) {
     
     int client_socketfd = client->socketfd;     //store socket fd on stack (faster access)
 
-    char *buffer = (char*)calloc(SO_READ_BUFFSIZE, sizeof(char));
+    char buffer[SO_READ_BUFFSIZE];
+    memset(buffer, 0, SO_READ_BUFFSIZE); 
 
     while(OS_RUNNING && client->running == 1) {
-        size_t len = recv(client_socketfd, buffer, SO_READ_BUFFSIZE, 0);
-        os_msg_t *msg = worker_handlemsg(client_socketfd, buffer, len);
+        size_t len = recv(client_socketfd, (char*)buffer, SO_READ_BUFFSIZE, 0);
+        os_msg_t *msg = worker_handlemsg(client_socketfd, (char*)buffer, len);
         if (msg->cmd) {
             os_client_commandhandler(client_socketfd, client, msg);
         }
@@ -98,7 +91,7 @@ void *worker_loop(void *ptr) {
             break;
         }
     } 
-    worker_cleanup(client_socketfd, client, buffer);
+    worker_cleanup(client_socketfd, client);
     pthread_detach(pthread_self());
     return NULL;
 }

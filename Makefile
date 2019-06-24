@@ -23,13 +23,13 @@ os_client.o: os_client.c os_client.h
 test: test.c libobjstore.a
 	$(CC) $(CFLAGS) $(LDFLAGS)  $(CPPFLAGS) $< -o $@ -l$(LIBNAME)
 
-interactive: interactive.c libobjstore.a
-	$(CC) $(CFLAGS) $(LDFLAGS)  -lreadline $(CPPFLAGS) $< -o $@ -l$(LIBNAME)
+#sakuraba: sakuraba.c libobjstore.a
+#	$(CC) $(CFLAGS) $(LDFLAGS)  -lreadline $(CPPFLAGS) $< -o $@ -l$(LIBNAME)
 
 os_server: $(SRV_OBJECTS)
 	$(CC) $(CFLAGS) -O3 $(LDFLAGS) $(CPPFLAGS) $(SRV_OBJECTS) -o $@ -lpthread
 
-all: os_server libobjstore.a test interactive
+all: os_server libobjstore.a test #sakuraba
 
 dotest:
 	@$(RM) -r data/*

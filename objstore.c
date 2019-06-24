@@ -122,8 +122,14 @@ void *os_retrieve(char *name) {
 
 int os_store(char *name, void *block, size_t len) {
     if (objstore_fd < 0) return false;
-    dprintf(objstore_fd, "STORE %s %ld \n ", name, len);
-    send(objstore_fd, block, len, 0);
+    char header[128];
+    memset(header, 0, 128);
+    sprintf((char*)header, "STORE %s %ld \n ", name, len);
+    ssize_t headerlen = strlen(header);
+    char *tosend = (char*)calloc(headerlen + len, sizeof(char));
+    strcpy(tosend, header);
+    memcpy(tosend + headerlen, block, len);
+    send(objstore_fd, tosend, headerlen + len, 0);
     char *buff = (char*)calloc(SO_READ_BUFFSIZE, sizeof(char));
     recv(objstore_fd, buff, SO_READ_BUFFSIZE, 0);
     return check_response(buff);

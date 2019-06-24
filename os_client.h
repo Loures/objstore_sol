@@ -8,6 +8,7 @@ typedef struct os_msg_t {
 	char *cmd;
 	char *name;
 	size_t len;
+	size_t datalen;
 	char *data;
 } os_msg_t;
 
