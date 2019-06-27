@@ -3,7 +3,7 @@
 #include <string.h>
 #include <objstore.h>
 
-#define ERRSTR objstore_errstr
+//#define ERRSTR objstore_errstr
 #define test_str "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent iaculis arcu eu tempor cras amet.\n"
 #define test_strlen 100
 
@@ -20,7 +20,8 @@ int test1() {
         #ifdef ERRSTR 
             printf("%s", ERRSTR);
         #endif
-        return !os_disconnect();
+        os_disconnect();
+        return 0;
     }
     for (int i = 1; i <= 18; i++) {
         char name[128];
@@ -32,7 +33,8 @@ int test1() {
             #ifdef ERRSTR 
                 printf("%s", ERRSTR);
             #endif
-            return !os_disconnect();
+            os_disconnect();
+            return 0;
         }
         free(str);
     }
@@ -42,7 +44,8 @@ int test1() {
             #ifdef ERRSTR 
                 printf("%s", ERRSTR);
             #endif
-            return !os_disconnect();
+            os_disconnect();
+            return 0;
     }
     free(str);
     os_disconnect();
@@ -56,7 +59,8 @@ int test2() {
             printf("%s", ERRSTR);
         #endif
         free(str_first);
-        return !os_disconnect();
+        os_disconnect();
+        return 0;
     }
     free(str_first);
     for (int i = 2; i <= 19; i++) {
@@ -69,7 +73,8 @@ int test2() {
                 printf("%s", ERRSTR);
             #endif
             free(str);
-            return !os_disconnect();
+            os_disconnect();
+            return 0;
         }
         free(str);
     }
@@ -79,8 +84,10 @@ int test2() {
             printf("%s", ERRSTR);
         #endif
         free(str_last);
-        return !os_disconnect();
+        os_disconnect();
+        return 0;
     }
+    free(str_last);
     os_disconnect();
     return 1;
 }
@@ -94,7 +101,8 @@ int test3() {
             #ifdef ERRSTR
                 printf("%s", ERRSTR);
             #endif
-            return !os_disconnect();
+            os_disconnect();
+            return 0;
         };
     }
     os_disconnect();

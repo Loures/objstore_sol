@@ -6,7 +6,10 @@ const size_t linkedlist_elem_size = sizeof(linkedlist_elem);
 
 linkedlist_elem *linkedlist_new(linkedlist_elem *list, void *data) {
 	linkedlist_elem *new = (linkedlist_elem*)malloc(linkedlist_elem_size);
-	if (new == NULL) err_malloc(linkedlist_elem_size);
+	if (new == NULL) {
+		err_malloc(linkedlist_elem_size)
+		exit(EXIT_FAILURE);
+	}
 	new->ptr = data;
 	pthread_mutex_init(&(new->prevmtx), NULL);
 	new->prev = NULL;
@@ -17,6 +20,7 @@ linkedlist_elem *linkedlist_new(linkedlist_elem *list, void *data) {
 		list->prev = new;
 	}
 	return new;
+
 }
 
 linkedlist_elem *linkedlist_search(linkedlist_elem *list, int (*fun)(const void*, void*), void *arg) {

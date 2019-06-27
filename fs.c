@@ -19,21 +19,26 @@ int fs_mkdir(client_t *client) {
     sprintf(path, "%s/%s", DATA_PATH, client->name);
     int err = mkdir(path, S_IRWXU | S_IRGRP | S_IROTH);    //rwxr--r--
     if (err < 0 && errno != EEXIST) err_mkdir(path);
-    return 0;
+    return 1;
 }
 
 int fs_write(int cfd, client_t *client, char *filename, size_t len, char *data, size_t datalen) {
     char path[strlen(DATA_PATH) + strlen(client->name) + strlen(filename) + 3]; //3 for slashes (/) and null terminator
     sprintf(path, "%s/%s/%s", DATA_PATH, client->name, filename);
+    int err = unlink(path);
+    if (err < 0 && errno != ENOENT) {
+        err_unlink(path);
+        return 0;
+    }
     int fd = open(path, O_CREAT | O_RDWR, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
     if (fd < 0) {
         err_open(path);
-        return -1;
+        return 0;
     }
     ssize_t wlen = write(fd, data, datalen);   
     if (wlen < 0) {
         err_write(fd);
-        return -1;
+        return 0;
     }
     ssize_t wrotelen = wlen;
     if (wrotelen < len) {
@@ -47,7 +52,7 @@ int fs_write(int cfd, client_t *client, char *filename, size_t len, char *data, 
     }
     close(fd);
     if (VERBOSE) fprintf(stderr, "OBJSTORE: Wrote %ld bytes to file \"%s\"\n", wrotelen, path);
-    return 0;
+    return 1;
 }
 
 int fs_delete(client_t *client, char *filename) {
@@ -55,11 +60,11 @@ int fs_delete(client_t *client, char *filename) {
     sprintf(path, "%s/%s/%s", DATA_PATH, client->name, filename);
     int err = unlink(path);
     if (err < 0) {
-        err_unlink(filename);
-        return -1;
+        err_unlink(path);
+        return 0;
     }
     if (VERBOSE) fprintf(stderr, "OBJSTORE: Deleted file \"%s\"\n", path);
-    return 0;
+    return 1;
 }
 
 int fs_read(int cfd, client_t *client, char *filename) {
@@ -72,8 +77,8 @@ int fs_read(int cfd, client_t *client, char *filename) {
     }
     struct stat statbuf;
     fstat(fd, &statbuf);
-    char buff[statbuf.st_size];
-    ssize_t readlen = read(fd, (char*)buff, (ssize_t)(statbuf.st_size));
+    char *buff = (char*)calloc(statbuf.st_size, sizeof(char));
+    ssize_t readlen = read(fd, buff, (ssize_t)(statbuf.st_size));
     if (readlen < 0) {
         err_write(fd);
         return 0;
@@ -84,14 +89,23 @@ int fs_read(int cfd, client_t *client, char *filename) {
     char len[sizeof(ssize_t) + 1];
     memset(len, 0, sizeof(ssize_t) + 1);
     sprintf(len, "%ld", readlen);
+    
     ssize_t response_len = strlen(retrieve) + strlen(len) + 3 + readlen;
+
     char *response = (char*)calloc(response_len, sizeof(char));   //3 -> space newline space
+    if (response == NULL) {
+        err_malloc(response_len);
+        exit(EXIT_FAILURE);
+    } 
+
     sprintf(response, "DATA %s \n ", len);
     memcpy(response + (strlen(retrieve) + strlen(len) + 3), buff, readlen);
     send(cfd, (char*)response, response_len, 0);
     free(response);
-    
+    free(buff);
+
     return 1;
+    
     //remember to free dis shit;
 }
 

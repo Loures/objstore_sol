@@ -21,20 +21,20 @@ void dispatcher_cleanup() {
 
 
 static void stats() {
-	fflush(stderr);
-	fprintf(stderr, "\nOBJSTORE: Numero client connessi: %d\n", worker_num);
+	fflush(stdout);
+	fprintf(stdout, "\nSTATS: Connected clients: %d\n", worker_num);
 	FILE *size = popen("du -cbs --apparent-size data/*/* 2> /dev/null | tail -1 | cut -f1 ", "r");
 	char buff[128];
 	memset(buff, 0, 128);
 	fgets(buff, 128, size);
-	fprintf(stderr, "OBJSTORE: Dimensione totale store: %ld bytes\n", atol(buff));
+	fprintf(stdout, "STATS: Store total size: %ld bytes\n", atol(buff));
 	pclose(size);
 	FILE *count = popen("ls data/*/* 2> /dev/null | wc -w", "r");
 	memset(buff, 0, 128);
 	fgets(buff, 128, count);
-	fprintf(stderr, "OBJSTORE: Numero oggetti nello store: %ld\n", atol(buff));
+	fprintf(stdout, "STATS: Objects stored: %ld\n\n", atol(buff));
 	pclose(count);
-	fflush(stderr);
+	fflush(stdout);
 }
 
 
@@ -53,21 +53,29 @@ void *dispatch(void *arg) {
             int client_fd = accept(os_serverfd, NULL, NULL);
 
             client_t *new_client = (client_t*)calloc(1, sizeof(client_t));
-
-            new_client->name = NULL;
+            if (new_client == NULL) {
+                err_malloc(sizeof(client_t));
+                exit(EXIT_FAILURE);
+            }    
+           
+		   	new_client->name = NULL;
             new_client->socketfd = client_fd;
             new_client->running = 1;
 
             pthread_t *wk = &(new_client->worker);
 
-            pthread_mutex_lock(&client_list_mtx);
+            linkedlist_elem *newelem = linkedlist_new(client_list, (void*)new_client);
 
-            client_list = linkedlist_new(client_list, (void*)new_client);
+            pthread_mutex_lock(&worker_num_mtx);
+            
+            client_list = newelem; 
             worker_num++;   //add new thread worker
 
-            pthread_mutex_unlock(&client_list_mtx);
+            pthread_mutex_unlock(&worker_num_mtx);
 
             pthread_create(wk, NULL, &worker_loop, (void*)new_client);
+            if (VERBOSE) fprintf(stderr, "OBJSTORE: Client connected on socket %d\n", client_fd);
+           
         }
 
         if (ev == 1 && (pollfds[1].revents & POLLIN)) {
@@ -76,12 +84,12 @@ void *dispatch(void *arg) {
         }
         
     }
-    pthread_mutex_lock(&client_list_mtx);
+    pthread_mutex_lock(&worker_num_mtx);
     while (worker_num > 0) {
-        pthread_cond_wait(&worker_num_cond, &client_list_mtx);
+        pthread_cond_wait(&worker_num_cond, &worker_num_mtx);
     }
     dispatcher_cleanup();
-    pthread_mutex_unlock(&client_list_mtx);
+    pthread_mutex_unlock(&worker_num_mtx);
     
     pthread_exit(NULL);
 }

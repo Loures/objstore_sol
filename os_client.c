@@ -43,7 +43,11 @@ static void os_client_handleregistration(int fd, client_t *client, const char *n
     linkedlist_elem *result = linkedlist_search(client_list, &iter_fd_exists, (void*)name);
 
     if (!result) {
-        client->name = (char*)malloc(strlen(name) + 1);     //+1 for \0 terminator
+        client->name = (char*)calloc(strlen(name) + 1, sizeof(char));     //+1 for \0 terminator
+        if (client->name == NULL) {
+            err_malloc(strlen(name) + 1);
+            exit(EXIT_FAILURE);
+        } 
         strcpy(client->name, name);
 
         fs_mkdir(client);
@@ -61,6 +65,7 @@ static void os_client_handleleave(int fd, client_t *client) {
         fprintf(stderr, "OBJSTORE: Client on socket %d (%s) left\n", fd, name);
     }
 
+	send_ok(fd);
     client->running = 0;
 }
 
@@ -74,7 +79,7 @@ static void os_client_handleretrieve(int fd, client_t *client, char *filename) {
 
 static void os_client_handledelete(int fd, client_t *client, char *filename) {
     int err = fs_delete(client, filename);
-    if (err == -1) {
+    if (err == 0) {
         char buf[128];
         strerror_r(errno, buf, 128);
         send_ko(fd, buf);
@@ -87,7 +92,7 @@ static void os_client_handlestore(int fd, client_t *client, char *filename, char
         return;
     }
     int err = fs_write(fd, client, filename, len, data, datalen);
-    if (err == -1) {
+    if (err == 0) {
         char buf[128];
         strerror_r(errno, buf, 128);
         send_ko(fd, buf);

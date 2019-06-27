@@ -23,7 +23,7 @@
 	extern size_t SO_WRITE_BUFFSIZE;
 
 	extern volatile int worker_num;
-	extern pthread_mutex_t client_list_mtx;
+	extern pthread_mutex_t worker_num_mtx;
 	extern pthread_cond_t worker_num_cond;
 	
 	

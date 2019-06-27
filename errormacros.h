@@ -28,7 +28,7 @@
 	#define err_malloc(size) \
 		{char buf[128]; \
 		strerror_r(errno, buf, 128); \
-	    fprintf(stderr, "OBJSTORE: Error malloc'ing %zu bytes: %s\n", size, buf);}
+	    fprintf(stderr, "OBJSTORE: Error allocating %ld bytes: %s\n", size, buf);}
 
 	#define err_signal() \
 		{char buf[128]; \

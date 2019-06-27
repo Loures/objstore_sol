@@ -1,6 +1,7 @@
 #include <os_server.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+#include <sys/poll.h>
 #include <dispatcher.h>
 #include <fs.h>
 
@@ -22,7 +23,7 @@ static int waited_sig = 0;
 int os_serverfd;
 int VERBOSE = 0;
 volatile int worker_num = 0;
-pthread_mutex_t client_list_mtx = PTHREAD_MUTEX_INITIALIZER;
+pthread_mutex_t worker_num_mtx = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t worker_num_cond = PTHREAD_COND_INITIALIZER;
 
 const char *one = "1";
@@ -114,6 +115,6 @@ int main(int argc, char *argv[]) {
 	//if (VERBOSE) fprintf(stderr, "OBJSTORE: Syncing writes...\n");
 	//sync();
 	//if (VERBOSE) fprintf(stderr, "OBJSTORE: Writes synced\n");
-	return 0;
+	exit(EXIT_SUCCESS);
 
 }
