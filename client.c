@@ -7,16 +7,19 @@
 #define test_str "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent iaculis arcu eu tempor cras amet.\n"
 #define test_strlen 100
 
-
+//Create 20 strings, with sizes ranging from 55 * 100 to
 char *repeat_str(int n) {
-    char *repeat = (char*)malloc(sizeof(char) * test_strlen * n + 1);
-    for (int i = 0; i < n; i++) strcpy(repeat + test_strlen * i, test_str);
-    repeat[test_strlen * n] = '\0';
+    char *repeat = (char*)calloc(test_strlen * n + 1, sizeof(char));
+    size_t seek = 0;
+    while (seek < test_strlen * n) {
+        memcpy(repeat + seek, test_str, 100);
+        seek = seek + test_strlen;
+    }
     return repeat;
 }
 
 int test1() {
-    if (!os_store("Object1", test_str, test_strlen)) {
+    if (!os_store("Object1", test_str, test_strlen + 1)) {
         #ifdef ERRSTR 
             printf("%s", ERRSTR);
         #endif
@@ -28,7 +31,7 @@ int test1() {
         memset(name, 0, 128);
         sprintf(name, "Object%d", i + 1);
         char *str = repeat_str(i * 55);
-        if (!os_store(name, str, i * test_strlen * 55)) {
+        if (!os_store(name, str, i * test_strlen * 55 + 1)) {
             free(str);
             #ifdef ERRSTR 
                 printf("%s", ERRSTR);
@@ -39,7 +42,7 @@ int test1() {
         free(str);
     }
     char *str = repeat_str(1000);
-    if (!os_store("Object20", str, 1000 * test_strlen)) {
+    if (!os_store("Object20", str, 1000 * test_strlen + 1)) {
             free(str);
             #ifdef ERRSTR 
                 printf("%s", ERRSTR);

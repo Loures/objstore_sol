@@ -6,6 +6,13 @@
 
 const char *ok = "OK \n";
 
+//Helper struct for REGISTER handler
+struct name_fd {
+    int fd;
+    char *name;
+};
+
+//Convert command string to int
 static int getcommand(os_msg_t *msg) {
     if (msg->cmd) {
         if (strcmp(msg->cmd, "REGISTER") == 0 && msg->name) return OS_CLIENT_REGISTER;
@@ -14,50 +21,63 @@ static int getcommand(os_msg_t *msg) {
         if (strcmp(msg->cmd, "DELETE") == 0 && msg->name) return OS_CLIENT_DELETE;
         if (strcmp(msg->cmd, "LEAVE") == 0) return OS_CLIENT_LEAVE;
     }
+
+    //Not a command
     return -1;
 }
 
-static int iter_fd_exists(const void *ptr, void *arg) {
-    int sfd = *(int*)arg;
+//Search function for REGISTER handler
+static int namecompare(const void *ptr, void *arg) {
     client_t *client = (client_t*)ptr;
-    if (client->socketfd) return sfd == client->socketfd;
+    struct name_fd *nfd = (struct name_fd*)arg;
+    if (client->name) return strcmp(client->name, nfd->name) == 0 && client->socketfd != nfd->fd;
     return 0;
 }
 
+//Helper functions for sending OKs or KOs
 static void send_ok(int fd) {
     send(fd, ok, 5, 0);
 }
 
 static void send_ko(int fd, const char *msg) {
-    char to_send[5 + strlen(msg)];  //5 is the length of "OK" plus "\n\0"
+    //5 is the length of "KO \n" and a null terminator
+    char to_send[5 + strlen(msg)]; 
     sprintf(to_send, "KO %s\n", msg);
     send(fd, to_send, 5 + strlen(msg), 0);
 }
 
+//REGISTER handler
 static void os_client_handleregistration(int fd, client_t *client, const char *name) {
     if (client->name != NULL) {
         send_ko(fd, "You're already registered");
         return;
     }
     
-    linkedlist_elem *result = linkedlist_search(client_list, &iter_fd_exists, (void*)name);
+    struct name_fd arg = (struct name_fd){fd, (char*)name};
 
+    linkedlist_elem *result = linkedlist_search(client_list, &namecompare, (void*)&arg);
+
+    //If there's no other client with the same name
     if (!result) {
-        client->name = (char*)calloc(strlen(name) + 1, sizeof(char));     //+1 for \0 terminator
+        client->name = (char*)calloc(strlen(name) + 1, sizeof(char));
         if (client->name == NULL) {
             err_malloc(strlen(name) + 1);
             exit(EXIT_FAILURE);
         } 
         strcpy(client->name, name);
 
+        //Make directory for storing client objects
         fs_mkdir(client);
 
         if (VERBOSE) fprintf(stderr, "OBJSTORE: Client registered as %s\n", client->name);
 
         send_ok(fd);
-    } else send_ko(fd, "Username already exists");
+    } else {
+        send_ko(fd, "Username already exists");
+    }
 }
 
+//LEAVE handler
 static void os_client_handleleave(int fd, client_t *client) {
     
     if (VERBOSE) {
@@ -66,9 +86,12 @@ static void os_client_handleleave(int fd, client_t *client) {
     }
 
 	send_ok(fd);
+
+    //Stop the client's worker thread
     client->running = 0;
 }
 
+//RETRIEVE handler
 static void os_client_handleretrieve(int fd, client_t *client, char *filename) {
     if (!fs_read(fd, client, filename)) {
         char buf[128];
@@ -77,6 +100,7 @@ static void os_client_handleretrieve(int fd, client_t *client, char *filename) {
     }
 }
 
+//DELETE handler
 static void os_client_handledelete(int fd, client_t *client, char *filename) {
     int err = fs_delete(client, filename);
     if (err == 0) {
@@ -86,11 +110,8 @@ static void os_client_handledelete(int fd, client_t *client, char *filename) {
     } else send_ok(fd);
 }
 
+//STORE handler
 static void os_client_handlestore(int fd, client_t *client, char *filename, char *data, size_t len, size_t datalen) {
-    if (!client->name) {
-        send_ko(fd, "You're not registered");
-        return;
-    }
     int err = fs_write(fd, client, filename, len, data, datalen);
     if (err == 0) {
         char buf[128];
@@ -123,6 +144,7 @@ int os_client_commandhandler(int fd, client_t *client, os_msg_t *msg) {
             break;
 
         default:
+            //What we got is not a message (???)
             send_ko(fd, "Broken message");
             return 0;
             break;

@@ -3,25 +3,20 @@
 #include <sys/socket.h>
 #include <os_client.h>
 
-typedef struct buffer_t {
-    char *data;
-    size_t size;
-} buffer_t;
-
-static int iter_fd_exists(const void *ptr, void *arg) {
-    int sfd = *(int*)arg;
-    client_t *client = (client_t*)ptr;
-    if (client->socketfd) return sfd == client->socketfd;
-    return 0;
+static int client_comp(const void *ptr, void *arg) {
+    return memcmp(ptr, arg, sizeof(client_t)) == 0;
 }
 
 void worker_cleanup(int fd, client_t *client) {
-    if (VERBOSE) fprintf(stderr, "OBJSTORE: Cleaned up worker thread %ld\n", pthread_self());
-    //free(buffer);
+    if (VERBOSE) fprintf(stderr, "OBJSTORE: Cleaned up client \'%s\' worker thread\n", client->name);
+
+    //Dealloc client struct, remove from client list and close fd
     if (client->name) free(client->name);
-    linkedlist_iterative_remove(client_list, &iter_fd_exists, &fd);
+    client->name = NULL;
+    linkedlist_iterative_remove(client_list, &client_comp, &fd);
     close(fd);
 
+    //We are done with this client, decrease number of worker threads
     pthread_mutex_lock(&worker_num_mtx);
     worker_num--;
     if (worker_num <= 0) pthread_cond_signal(&worker_num_cond);
@@ -30,26 +25,30 @@ void worker_cleanup(int fd, client_t *client) {
 }
 
 os_msg_t *worker_handlemsg(int fd, char *buff, size_t buffsize) {
+    //Init os_msg_t structure
     os_msg_t *msg = (os_msg_t*)calloc(1, sizeof(os_msg_t));
     if (msg == NULL) {
         err_malloc(sizeof(os_msg_t));
         exit(EXIT_FAILURE);
     } else {
 
-
+    //If we haven't read nothing return an empty message
     if (buffsize <= 0) return msg;
 
 
+    //Parse the header
     char *saveptr;
     char *cmd = strtok_r(buff, " ", &saveptr);
     char *name = strtok_r(NULL, " ", &saveptr);
     char *len = strtok_r(NULL, " ", &saveptr);
     char *newline = strtok_r(NULL, " ", &saveptr);
 
+    //datalen contains how many bytes we read of the data to store in case of STORE command
     msg->datalen = 0;
 
+    //Set command field of message
     if (cmd) {
-        msg->cmd = (char*)malloc(sizeof(char) * (strlen(cmd) + 1));     //there's always a cmd
+        msg->cmd = (char*)malloc(sizeof(char) * (strlen(cmd) + 1));
         if (msg->cmd == NULL) {
             err_malloc(strlen(cmd) + 1);
             exit(EXIT_FAILURE);
@@ -58,6 +57,7 @@ os_msg_t *worker_handlemsg(int fd, char *buff, size_t buffsize) {
         strcpy(msg->cmd, cmd);
     }
 
+    //Set name field of message if it exists
     if (name && name[0] != '\n') {
         msg->name = (char*)malloc(sizeof(char) * (strlen(name) + 1)); 
         if (msg->name == NULL) {
@@ -68,22 +68,29 @@ os_msg_t *worker_handlemsg(int fd, char *buff, size_t buffsize) {
         strcpy(msg->name, name);
     }
     
+    //Set len field of message if it exists
     if (len && len[0] != '\n') msg->len = atol(len);
     
+    //Handle STORE data 
     if (newline && newline[0] == '\n') {
-        size_t headerlen = strlen(cmd) + 1 + strlen(name) + 1 + strlen(len) + 3;    //command name len \n data 
+        //command name len \n data 
+        size_t headerlen = strlen(cmd) + 1 + strlen(name) + 1 + strlen(len) + 3;
+        
+        //Alloc memory for data
         msg->data = (char*)calloc(msg->len, sizeof(char));
         if (msg->data == NULL) {
             err_malloc(msg->len);
             exit(EXIT_FAILURE);
         }
         
+        //Alloc data field of message
         if (headerlen < buffsize) {
             memcpy(msg->data, buff + headerlen, buffsize - headerlen);
             msg->datalen = buffsize - headerlen;    
         }
     }
 
+    //Reset buffer
     memset(buff, 0, SO_READ_BUFFSIZE);
     return msg;
     }    
@@ -92,8 +99,10 @@ os_msg_t *worker_handlemsg(int fd, char *buff, size_t buffsize) {
 void *worker_loop(void *ptr) {
     client_t *client = (client_t*)ptr;
     
-    int client_socketfd = client->socketfd;     //store socket fd on stack (faster access)
+     //store socket fd on stack (faster access)
+    int client_socketfd = client->socketfd;    
 
+    //Init read buffer on stack
     char buffer[SO_READ_BUFFSIZE];
     memset(buffer, 0, SO_READ_BUFFSIZE); 
 
@@ -101,21 +110,30 @@ void *worker_loop(void *ptr) {
     pollfds[0] = (struct pollfd){client_socketfd, POLLIN, 0};
 
     while(OS_RUNNING && client->running == 1) {
-        int ev = poll(pollfds, 1, 10);    //poll socket file descriptor
+        //Start polling socket file descriptor
+        int ev = poll(pollfds, 1, 10);    
         if (ev < 0) err_select(client_socketfd);
         if (ev == 1 && (pollfds[0].revents & POLLIN)) {
             size_t len = recv(client_socketfd, (char*)buffer, SO_READ_BUFFSIZE, 0);
             os_msg_t *msg = worker_handlemsg(client_socketfd, (char*)buffer, len);
+
+            //Begin handling message
             if (msg->cmd) {
                 os_client_commandhandler(client_socketfd, client, msg);
             }
+
+            //...then free it
             free_os_msg(msg);
-            if (len <= 0) {     //our client has shut itself down without disconnecting
+
+            //Client has terminated without disconnecting or something else bad happened
+            if (len <= 0) {     
                 if (VERBOSE) fprintf(stderr, "OBJSTORE: Client on socket %d has terminated without disconnecting\n", client_socketfd);
                 break;
             }
         }
-    } 
+    }
+
+    //Begin cleaning up worker thread
     worker_cleanup(client_socketfd, client);
     pthread_detach(pthread_self());
     return NULL;

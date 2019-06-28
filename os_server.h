@@ -14,13 +14,13 @@
 
 
 	extern volatile sig_atomic_t OS_RUNNING;
+	
 	extern int os_serverfd;
 	extern int os_signalfd[];
 	
 	extern int VERBOSE;
 
 	extern size_t SO_READ_BUFFSIZE;
-	extern size_t SO_WRITE_BUFFSIZE;
 
 	extern volatile int worker_num;
 	extern pthread_mutex_t worker_num_mtx;
@@ -35,6 +35,8 @@
 	} client_t;
 
 	extern linkedlist_elem* client_list;
+
+	#define SOCKET_ADDR "/tmp/objstore.sock"
 
 	#define discardsignals(sgn) \
 		{ \

@@ -13,7 +13,7 @@ int main(int argc, char *argv[]) {
         memset(big, '1', 100000000);
         os_store("big", (char*)big, 100000000);
         char *bigger = os_retrieve("big");
-        fprintf(stderr, "a %ld\n", strlen(bigger));
+        fprintf(stderr, "a %ld\n", strcmp(bigger, big) == 0);
         os_disconnect();
         free(big);
     }

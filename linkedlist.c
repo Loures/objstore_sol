@@ -26,14 +26,10 @@ linkedlist_elem *linkedlist_new(linkedlist_elem *list, void *data) {
 linkedlist_elem *linkedlist_search(linkedlist_elem *list, int (*fun)(const void*, void*), void *arg) {
 	linkedlist_elem *curr = list;
 	while (curr != NULL) {
-		//if (curr) pthread_mutex_lock(&(curr->prevmtx));
-		//if (curr) pthread_mutex_lock(&(curr->nextmtx));
 		if (curr->ptr) {
 			if (fun((const void*)(curr->ptr), (void*)arg)) return curr;
 		}
 		curr = curr->next;
-		//if (curr) pthread_mutex_unlock(&(curr->prevmtx));
-		//if (curr) pthread_mutex_unlock(&(curr->nextmtx));
 	}
 	return NULL;
 }
