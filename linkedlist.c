@@ -30,10 +30,12 @@ linkedlist_elem *linkedlist_search(linkedlist_elem *list, int (*fun)(const void*
 	linkedlist_elem *curr = list;
 	if (!curr) return NULL;
 	while (curr->next != NULL) {
-		if (curr->nextmtx) pthread_mutex_lock(curr->nextmtx);
 		if (curr->ptr) {
 			if (curr->nextmtx) pthread_mutex_unlock(curr->nextmtx);
-			if (fun((const void*)(curr->ptr), (void*)arg)) return curr;
+			if (fun((const void*)(curr->ptr), (void*)arg)) {
+				if (curr->nextmtx) pthread_mutex_lock(curr->nextmtx);
+				return curr;
+			}
 		}
 		curr = curr->next;
 		if (curr->nextmtx) pthread_mutex_unlock(curr->nextmtx);

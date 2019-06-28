@@ -1,10 +1,5 @@
 #!/usr/bin/env bash
 
-if [ ! -e "/tmp/objstore.sock" ]; then
-    echo "Server non attivo"
-    exit 1
-fi
-
 WRITE=$1
 READ=$(($1 * 3/5));
 DELETE=$(($1 * 2/5))
@@ -16,15 +11,15 @@ function printstats {
 	TEST1=$(grep -c "Test 1 passato" testout.log)
 	TEST2=$(grep -c "Test 2 passato" testout.log)
 	TEST3=$(grep -c "Test 3 passato" testout.log)
-	echo "Test 1 passati: $TEST1"
-    grep "Test 1 non passato" testout.log
-	echo "Test 1 non passati: $(($WRITE - $TEST1))"
-	echo "Test 2 passati: $TEST2"
-    grep "Test 2 non passato" testout.log
-	echo "Test 2 non passati: $(($READ - $TEST2))"
-	echo "Test 3 passati: $TEST3"
-    grep "Test 3 non passato" testout.log
-	echo "Test 3 non passati: $(($DELETE - $TEST3))"
+	echo "Test tipo 1 passati: $TEST1"
+    grep "Test tipo 1 non passato" testout.log
+	echo "Test tipo 1 non passati: $(($WRITE - $TEST1))"
+	echo "Test tipo 2 passati: $TEST2"
+    grep "Test tipo 2 non passato" testout.log
+	echo "Test tipo 2 non passati: $(($READ - $TEST2))"
+	echo "Test tipo 3 passati: $TEST3"
+    grep "Test tipo 3 non passato" testout.log
+	echo "Test tipo 3 non passati: $(($DELETE - $TEST3))"
 }
 
 function testclient {
@@ -52,8 +47,8 @@ for line in $(tail -$DELETE <<< "$WORDS"); do
 done
 wait
 
-pkill -USR1 os_server
-sleep .25
-pkill -TERM os_server
-
 printstats
+
+kill -USR1 $(ps | grep os_server | cut -d" " -f1)
+wait
+kill -TERM $(ps | grep os_server | cut -d" " -f1)

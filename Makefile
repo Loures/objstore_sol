@@ -1,7 +1,8 @@
 CPPFLAGS=-I. -D_POSIX_C_SOURCE=200809L
 LDFLAGS=-L.
 LIBNAME=objstore
-CFLAGS=-std=c99 -Wall 
+CFLAGS=-std=c99 -Wall
+SHELL=/usr/bin/env bash
 		
 SRV_OBJECTS=os_server.o worker.o dispatcher.o linkedlist.o os_client.o fs.o
 
@@ -43,6 +44,7 @@ testing: CFLAGS+=-g
 testing: all
 
 test: cleardata
+	@./os_server &
 	@./testscript.sh 50
 
 clean:

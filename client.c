@@ -7,6 +7,8 @@
 #define test_str "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Praesent iaculis arcu eu tempor cras amet.\n"
 #define test_strlen 100
 
+static ssize_t failed_tests = 0;
+
 //Create 20 strings, with sizes ranging from 55 * 100 to
 char *repeat_str(int n) {
     char *repeat = (char*)calloc(test_strlen * n, sizeof(char));
@@ -24,7 +26,7 @@ int test1() {
         #ifdef ERRSTR 
             printf("%s", ERRSTR);
         #endif
-        os_disconnect();
+        failed_tests++;
         return 0;
     }
     for (int i = 1; i <= 18; i++) {
@@ -37,19 +39,19 @@ int test1() {
             #ifdef ERRSTR 
                 printf("%s", ERRSTR);
             #endif
-            os_disconnect();
+            failed_tests++;
             return 0;
         }
         free(str);
     }
     char *str = repeat_str(1000);
     if (!os_store("Object20", str, 1000 * test_strlen)) {
-            free(str);
-            #ifdef ERRSTR 
-                printf("%s", ERRSTR);
-            #endif
-            os_disconnect();
-            return 0;
+        free(str);
+        #ifdef ERRSTR 
+            printf("%s", ERRSTR);
+        #endif
+        failed_tests++;
+        return 0;
     }
     free(str);
     os_disconnect();
@@ -62,8 +64,8 @@ int test2() {
         #ifdef ERRSTR
             printf("%s", ERRSTR);
         #endif
+        failed_tests++;
         free(str_first);
-        os_disconnect();
         return 0;
     }
     free(str_first);
@@ -76,8 +78,8 @@ int test2() {
             #ifdef ERRSTR
                 printf("%s", ERRSTR);
             #endif
+            failed_tests++;
             free(str);
-            os_disconnect();
             return 0;
         }
         free(str);
@@ -87,8 +89,8 @@ int test2() {
         #ifdef ERRSTR
             printf("%s", ERRSTR);
         #endif
+        failed_tests++;
         free(str_last);
-        os_disconnect();
         return 0;
     }
     free(str_last);
@@ -105,6 +107,7 @@ int test3() {
             #ifdef ERRSTR
                 printf("%s", ERRSTR);
             #endif
+            failed_tests++;
             os_disconnect();
             return 0;
         };
@@ -117,14 +120,20 @@ int main(int argc, char *argv[]) {
     if (os_connect(argv[1]) && argv[2]) {
         switch (atoi(argv[2])) {
             case 1:
+                printf("Test passati: %ld\n", 20 - failed_tests);
+                printf("Test fallito: %ld\n", failed_tests);
                 return !test1();
                 break;
 
             case 2:
+                printf("Test passati: %ld\n", 20 - failed_tests);
+                printf("Test fallito: %ld\n", failed_tests);
                 return !test2();
                 break;
 
             case 3:
+                printf("Test passati: %ld\n", 20 - failed_tests);
+                printf("Test fallito: %ld\n", failed_tests);
                 return !test3();
                 break;
 

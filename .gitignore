@@ -7,6 +7,5 @@
 !.gitignore
 !appunti.txt
 !relazione
-!relazione/*.pdf
 !relazione/*.tex
 !relazione/Makefile
