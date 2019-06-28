@@ -53,7 +53,7 @@ done
 wait
 
 pkill -USR1 os_server
-sleep .5
+sleep .25
 pkill -TERM os_server
 
 printstats

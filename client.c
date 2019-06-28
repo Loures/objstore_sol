@@ -9,17 +9,18 @@
 
 //Create 20 strings, with sizes ranging from 55 * 100 to
 char *repeat_str(int n) {
-    char *repeat = (char*)calloc(test_strlen * n + 1, sizeof(char));
+    char *repeat = (char*)calloc(test_strlen * n, sizeof(char));
     size_t seek = 0;
-    while (seek < test_strlen * n) {
+    while (seek < test_strlen * n - 100) {
         memcpy(repeat + seek, test_str, 100);
         seek = seek + test_strlen;
     }
+	memcpy(repeat + seek, test_str, 99);
     return repeat;
 }
 
 int test1() {
-    if (!os_store("Object1", test_str, test_strlen + 1)) {
+    if (!os_store("Object1", test_str, test_strlen)) {
         #ifdef ERRSTR 
             printf("%s", ERRSTR);
         #endif
@@ -31,7 +32,7 @@ int test1() {
         memset(name, 0, 128);
         sprintf(name, "Object%d", i + 1);
         char *str = repeat_str(i * 55);
-        if (!os_store(name, str, i * test_strlen * 55 + 1)) {
+        if (!os_store(name, str, i * test_strlen * 55)) {
             free(str);
             #ifdef ERRSTR 
                 printf("%s", ERRSTR);
@@ -42,7 +43,7 @@ int test1() {
         free(str);
     }
     char *str = repeat_str(1000);
-    if (!os_store("Object20", str, 1000 * test_strlen + 1)) {
+    if (!os_store("Object20", str, 1000 * test_strlen)) {
             free(str);
             #ifdef ERRSTR 
                 printf("%s", ERRSTR);
@@ -71,7 +72,7 @@ int test2() {
         memset(name, 0, 128);
         sprintf(name, "Object%d", i);
         char *str = os_retrieve(name);
-        if (!(str && strlen(str) == (i - 1) * test_strlen * 55)) {
+        if (!(str && strlen(str) + 1 == (i - 1) * test_strlen * 55)) {
             #ifdef ERRSTR
                 printf("%s", ERRSTR);
             #endif
@@ -82,7 +83,7 @@ int test2() {
         free(str);
     }
     char *str_last = os_retrieve("Object20");
-    if (!(str_last && strlen(str_last) == 100000)) {
+    if (!(str_last && strlen(str_last) + 1 == 100000)) {
         #ifdef ERRSTR
             printf("%s", ERRSTR);
         #endif

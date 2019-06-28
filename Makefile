@@ -31,7 +31,13 @@ lib$(LIBNAME).a: $(LIBNAME).o $(LIBNAME).h
 client: client.c libobjstore.a
 	$(CC) $(CFLAGS) $(LDFLAGS) $(CPPFLAGS) -DERRSTR=objstore_errstr $< -o $@ -l$(LIBNAME)
 
-all: os_server libobjstore.a client #sakuraba
+interactive: interactive.c interactive.h libobjstore.a
+	$(CC) $(CFLAGS) $(LDFLAGS) $(CPPFLAGS) -DERRSTR=objstore_errstr $< -o $@ -l$(LIBNAME) -lreadline
+
+bigblock: bigblock.c libobjstore.a
+	$(CC) $(CFLAGS) $(LDFLAGS) $(CPPFLAGS) -DERRSTR=objstore_errstr $< -o $@ -l$(LIBNAME)
+
+all: os_server libobjstore.a client 
 
 testing: CFLAGS+=-g
 testing: all
@@ -40,7 +46,7 @@ test: cleardata
 	@./testscript.sh 50
 
 clean:
-	$(RM) ./*.o ./os_server client libobjstore.a
+	$(RM) ./*.o ./os_server client libobjstore.a interactive bigblock
 
 cleardata:
 	@$(RM) -r data/*

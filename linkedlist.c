@@ -11,44 +11,43 @@ linkedlist_elem *linkedlist_new(linkedlist_elem *list, void *data) {
 		exit(EXIT_FAILURE);
 	}
 	new->ptr = data;
-	pthread_mutex_init(&(new->prevmtx), NULL);
 	new->prev = NULL;
-	pthread_mutex_init(&(new->nextmtx), NULL);
+	new->prevmtx = NULL;
 	new->next = NULL;
+	new->nextmtx = NULL;
+	pthread_mutex_init(&(new->mtx), NULL);
 	if(list != NULL) {
 		new->next = list;
+		list->prevmtx = &new->mtx;
+		new->nextmtx = &list->mtx;
 		list->prev = new;
-	}
+	} 
 	return new;
 
 }
 
 linkedlist_elem *linkedlist_search(linkedlist_elem *list, int (*fun)(const void*, void*), void *arg) {
 	linkedlist_elem *curr = list;
-	while (curr != NULL) {
+	if (!curr) return NULL;
+	while (curr->next != NULL) {
+		if (curr->nextmtx) pthread_mutex_lock(curr->nextmtx);
 		if (curr->ptr) {
+			if (curr->nextmtx) pthread_mutex_unlock(curr->nextmtx);
 			if (fun((const void*)(curr->ptr), (void*)arg)) return curr;
 		}
 		curr = curr->next;
+		if (curr->nextmtx) pthread_mutex_unlock(curr->nextmtx);
 	}
 	return NULL;
 }
 
-void linkedlist_iter(linkedlist_elem *list, void (*fun)(const void*, void*), void *arg) {
-	linkedlist_elem *curr = list;
-	while (curr != NULL) {
-		fun((const void*)(curr->ptr), arg);
-		curr = curr->next;
-	}
-}
-
-linkedlist_elem *linkedlist_remove(linkedlist_elem *list, linkedlist_elem *elem) {
+linkedlist_elem *linkedlist_delete(linkedlist_elem *list, linkedlist_elem *elem) {
 	linkedlist_elem *curr = list;
 	while (curr != NULL && elem != NULL) {
 		linkedlist_elem *next = curr->next;
 		if (curr == elem) { //0: prev ok, next = NULL
-			pthread_mutex_lock(&(curr->prevmtx));
-			pthread_mutex_lock(&(curr->nextmtx));
+			if (curr->prevmtx) pthread_mutex_lock(curr->prevmtx);
+			if (curr->nextmtx) pthread_mutex_lock(curr->nextmtx);
 			if (elem->prev && elem->next) {
 				(elem->prev)->next = elem->next;	
 				(elem->next)->prev = elem->prev;
@@ -58,8 +57,8 @@ linkedlist_elem *linkedlist_remove(linkedlist_elem *list, linkedlist_elem *elem)
 			elem->ptr = NULL;
 			free(elem);
 			elem = NULL;
-			pthread_mutex_unlock(&(curr->prevmtx));
-			pthread_mutex_unlock(&(curr->nextmtx));
+			if (curr->prevmtx)pthread_mutex_unlock(curr->prevmtx);
+			if (curr->nextmtx)pthread_mutex_unlock(curr->nextmtx);
 			return list;
 		}
 		curr = next;
@@ -67,13 +66,13 @@ linkedlist_elem *linkedlist_remove(linkedlist_elem *list, linkedlist_elem *elem)
 	return list;	//failure
 }
 
-linkedlist_elem *linkedlist_iterative_remove(linkedlist_elem *list, int (*fun)(const void*, void*), void *arg) {
+linkedlist_elem *linkedlist_iter_delete(linkedlist_elem *list, int (*fun)(const void*, void*), void *arg) {
 	linkedlist_elem *curr = list;
 	while (curr != NULL) {
 		linkedlist_elem *next = curr->next;
 		if (fun((const void*)curr, (void*)arg)) { //0: prev ok, next = NULL
-			pthread_mutex_lock(&(curr->prevmtx));
-			pthread_mutex_lock(&(curr->nextmtx));
+			if (curr->prevmtx) pthread_mutex_lock(curr->prevmtx);
+			if (curr->nextmtx) pthread_mutex_lock(curr->nextmtx);
 			if (curr->prev && curr->next) {
 				(curr->prev)->next = curr->next;	
 				(curr->next)->prev = curr->prev;
@@ -83,8 +82,8 @@ linkedlist_elem *linkedlist_iterative_remove(linkedlist_elem *list, int (*fun)(c
 			curr->ptr = NULL;
 			free(curr);
 			curr = NULL;
-			pthread_mutex_unlock(&(curr->prevmtx));
-			pthread_mutex_unlock(&(curr->nextmtx));
+			if (curr->prevmtx)pthread_mutex_unlock(curr->prevmtx);
+			if (curr->nextmtx)pthread_mutex_unlock(curr->nextmtx);
 			return list;
 		}
 		curr = next;

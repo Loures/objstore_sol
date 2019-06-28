@@ -13,7 +13,7 @@ void worker_cleanup(int fd, client_t *client) {
     //Dealloc client struct, remove from client list and close fd
     if (client->name) free(client->name);
     client->name = NULL;
-    linkedlist_iterative_remove(client_list, &client_comp, &fd);
+    linkedlist_iter_delete(client_list, &client_comp, &fd);
     close(fd);
 
     //We are done with this client, decrease number of worker threads
