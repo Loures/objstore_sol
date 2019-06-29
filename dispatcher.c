@@ -62,7 +62,7 @@ void *dispatch(void *arg) {
         if (ev < 0) err_select(os_serverfd);
 
         //Check if we have a pending connection, accept only if the number of connected clients is < 500 to avoid breaking the fd limit
-        if (ev == 1 && (pollfds[0].revents & POLLIN) && worker_num < maxclients / 2 - 8) {   
+        if (ev == 1 && (pollfds[0].revents & POLLIN) && worker_num < maxclients / 2 - 64) {   
 
             //Accept connection
             int client_fd = accept(os_serverfd, NULL, NULL);

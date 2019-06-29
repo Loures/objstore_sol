@@ -4,40 +4,41 @@
 #include <objstore.h>
 #include <readline/readline.h>
 
-#define ERR_STRING objstore_errstr
-
-
 void parsequery(char *msg) {
     char saveptr[212992];
+    char copy[212992];
+    memset(copy, 0, 212992);
     memset(saveptr, 0, 212992);
+    strcpy(copy, msg);
     char *cmd = strtok_r(msg, " ", (char**)&saveptr);
     if (!cmd) return;
     if (strcmp(cmd, "REGISTER") == 0) {
         char *name = strtok_r(NULL, " ", (char**)&saveptr);
-        if (!os_connect(name)) printf(ERR_STRING); else printf("OK\n");
+        if (!os_connect(name)) printf("%s", ERRSTR); else printf("OK\n");
     }
     if (strcmp(cmd, "RETRIEVE") == 0) {
         char *name = strtok_r(NULL, " ", (char**)&saveptr);
         char *data = os_retrieve(name);
-        if (data) printf("%s\n", data); else printf(ERR_STRING);
+        if (data) printf("%s\n", data); else printf("%s", ERRSTR);
         fflush(NULL);
         free(data);
     }
     if (strcmp(cmd, "STORE") == 0) {
         char *name = strtok_r(NULL, " ", (char**)&saveptr);
-        char *lenstr = strtok_r(NULL, " ", (char**)&saveptr);
-        char *data = strtok_r(NULL, " ", (char**)&saveptr);
-        size_t len = atol(lenstr);
-        char cpy[len + 1];
-        cpy[len] = '\0';
-        memcpy(cpy, data, len);
-        if (!os_store(name, cpy, len + 1)) printf(ERR_STRING); else printf("OK\n");
+        if (!name) return;
+        char *data = copy + 7 + strlen(name);
+        ssize_t len = strlen(data);
+        if (len <= 0) return;
+        if (!os_store(name, data, len + 1)) printf("%s", ERRSTR); else printf("OK\n");
     }
     if (strcmp(cmd, "DELETE") == 0) {
         char *name = strtok_r(NULL, " ", (char**)&saveptr);
-        if (os_delete(name) < 0) printf(ERR_STRING); else printf("OK\n");
+        if (os_delete(name) < 0) printf("%s", ERRSTR); else printf("OK\n");
     }
-    if (strcmp(cmd, "LEAVE") == 0) os_disconnect();
+    if (strcmp(cmd, "LEAVE") == 0) {
+        if (os_disconnect()) printf("OK\n");
+        else printf("%s", ERRSTR);
+    }
     return;
 }
 

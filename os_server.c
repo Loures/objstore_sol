@@ -2,6 +2,7 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/poll.h>
+#include <sys/stat.h>
 #include <dispatcher.h>
 #include <fs.h>
 
@@ -87,15 +88,12 @@ int main(int argc, char *argv[]) {
     strncpy(socket_address.sun_path, SOCKET_ADDR, sizeof(socket_address.sun_path) - 1);		//-1 so we don't exceed max path size
     
 	//There might be another os_server process running or we might still have a previous socket from a killed os_server process
-    err = unlink(SOCKET_ADDR);     
-	if (err < 0 && errno != ENOENT) {
-		err_unlink(SOCKET_ADDR)
-		return 1;
-	} else if (err == 0) {
+	struct stat sb;
+	if (stat(SOCKET_ADDR, &sb) == 0) {
 		fprintf(stderr, "OBJSTORE: Socket already exists. Terminating execution\n");
-		return 1;
+		exit(EXIT_FAILURE);
 	}
-    
+
 	//Bind the socket
 	err = bind(os_serverfd, (const struct sockaddr*)&socket_address, sizeof(socket_address));      
     if (err < 0) err_socket(os_serverfd);

@@ -142,6 +142,7 @@ void *os_retrieve(char *name) {
 
 int os_store(char *name, void *block, size_t len) {
     if (objstore_fd < 0) return false;
+    if (!block || len < 1) return false;
 
     //Init header
     char header[128];
@@ -189,7 +190,10 @@ int os_delete(char *name) {
 }
 
 int os_disconnect() {
-    if (objstore_fd < 0) return false;
+    if (objstore_fd < 0) {
+        sprintf(objstore_errstr, "KO You're not registered\n");
+        return false;
+    }
     dprintf(objstore_fd, "LEAVE \n");
 
     char recv_ok[5];

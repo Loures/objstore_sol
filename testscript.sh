@@ -37,6 +37,8 @@ for line in $WORDS; do
 done
 wait
 
+
+
 for line in $(head -$READ <<< "$WORDS"); do 
     testclient $line 2 &
 done
@@ -45,10 +47,12 @@ done
 for line in $(tail -$DELETE <<< "$WORDS"); do 
     testclient $line 3 &
 done
-wait
+wait 
+
 
 printstats
 
-kill -USR1 $(ps | grep os_server | cut -d" " -f1)
+kill -USR1 $(ps -C os_server -o pid=) 
 wait
-kill -TERM $(ps | grep os_server | cut -d" " -f1)
+kill -TERM $(ps -C os_server -o pid=) 
+

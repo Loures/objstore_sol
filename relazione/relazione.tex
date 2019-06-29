@@ -39,17 +39,16 @@ L'unica struttura dati utilizzata all'intero del progetto è \texttt{linkedlist}
 di \texttt{linkedlist.c}
 
 Come per tutte le componenti del progetto la implementazione viene linkata all'eseguibile principale come file oggetto.
-
 \subsubsection{\texttt{linkedlist}}
 La lista double-linked è stata scelta per memorizzare i client connessi al server in un dato istante.
 La scelta è stata dovuta alla facilità di implementazione e all'interesse che mi ha suscitato una sua implementazione in un contesto di programmazione concorrente.
 Le procedure di ricerca \texttt{linkedlist\_search} e cancellazione \texttt{linkedlist\_delete} sono state dotate di un puntatore
- a una procedura esterna che permette di definire, rispettivamente, quale oggetto trovare e quale oggetto rimuovere.
+a una procedura esterna che definisce, rispettivamente, i criteri per la ricerca e i criteri per la cancellazione.
 
 
 \subsubsection{Gestione della concorrenza in \texttt{linkedlist}}
-Per gestire accessi e scritture all'interno della lista è stato implementato un meccanismo di \emph{fine-grained locking} ritenuto più efficente relativamente
-all'utilizzo che viene fatto della lista all'interno del server, ipotesi poi confermata da benchmark con un alto numero di client.
+Per gestire accessi e scritture all'interno della lista è stato implementato un meccanismo di \emph{fine-grained locking}, ritenuto più efficente relativamente
+all'utilizzo che viene fatto della lista all'interno del server, questa ipotesi è poi stata confermata dal confronto dei tempi di esecuzione con una implementazione dotata di un meccanismo di \emph{coarse-grained locking}.
 
 Specificatamente, questo meccanismo è implementato tramite l'utilizzo di una lock: \texttt{mtx}, che blocca un singolo elemento della lista, e due puntatori a lock:
 \texttt{prevmtx}, che punta alla lock dell'elemento precedente della lista (se esiste), e \texttt{nextmtx}, che punta alla lock dell'elemento successivo alla lista (se esiste);
@@ -92,18 +91,18 @@ L'header file \texttt{errormacros.h} contiene varie macro utilizzate per la gest
 %\setcounter{section}{1}
 \subsection{Interazione intra-processo}
 Il thread principale, dopo aver creato la socket e aver messo in piedi i meccanismi di gestione dei segnali, crea un thread dispatcher, il quale
-si occupa di gestire le connessioni che arrivano alla socket. Ogni qualvolta si presenti una connessione il dispatcher controlla che il numero di client connessi
-sia minore di meno della metà del massimo di descrittori di file aperti contemporaneamente da un processo , in caso positivo accetta la connessione e dopodiché crea un thread worker destinato a gestire tutti i messaggi inviati dal client fino
+si occupa di gestire le connessioni che arrivano alla socket. Ogni qualvolta si presenti una richiesta di connessione su quest'ultima il thread dispatcher
+valuta se il server è in condizione di accettarla o meno e, in caso positivo, accetta la connessione e crea il thread worker destinato a gestire tutte le interazioni server-client fino
 alla disconnessione di quest'ultimo.
 \subsubsection{Comunicazione intra-processo}
 La comunicazione intra-processo è basata su l'utilizzo di due variabili condivise: \texttt{OS\_RUNNING}, che segnala a tutti i thread del processo la terminazione
 dello stesso, e \texttt{worker\_num}, dove al suo interno è memorizzato il numero di client connessi.
 \subsubsection{Gestione della terminazione}
-Il processo di gestione della terminazione ha inizio dopo l'arrivo di un segnale \texttt{SIGTERM} o \texttt{SIGINT}; in seguito alla ricezione di tale segnale
+Il processo di gestione della terminazione ha inizio immediatamente dopo l'arrivo di un segnale \texttt{SIGTERM} o \texttt{SIGINT}; in seguito alla ricezione di tale segnale
 il thread adibito alla gestione dei segnali (il thread principale) setta \texttt{OS\_RUNNING} a 0.
 
-A questo punto ogni thread worker rileverà il cambiamento della variabile, uscirà dal suo loop e inizierà la procedura di cleanup,
-notificando al thread dispatcher l'avvenuta terminazione tramite la variabile di condizione \texttt{worker\_num\_cond}.
+A questo punto ogni thread worker rileverà il cambiamento della variabile, uscirà dal suo loop e darà inizio alla procedura di cleanup,
+al termine della quale il thread segnalerà al thread dispatcher l'avvenuta terminazione tramite la variabile di condizione \texttt{worker\_num\_cond}.
 
 Appena \texttt{worker\_num} diventa 0 il thread dispatcher esegue la propria procedura di cleanup, termina e restituisce il controllo al thread principale che farà terminare il processo.
 \subsection{Gestione dei segnali}
@@ -114,20 +113,25 @@ una volta rilevata la presenza di dati nella pipe la svuota ed esegue la procedu
 
 \subsection{Gestione della memoria}
 Per quanto concerne la gestione della memoria si è cercato di usare il più possibile lo stack di ciascun thread e usare le allocazioni sullo heap solo per dati
-di natura dinamica o di grandi dimensioni (in modo da evitare situazioni di stack overflow).
-
+di natura dinamica o di grandi dimensioni (in modo da scongiurare situazioni di stack overflow).
+\newpage
 \begin{appendices}
 \section{Sistemi operativi usati per il testing}
 \begin{itemize}
     \item Arch Linux con kernel Linux versione 5.1.15
-    \item Macchina virtuale con Xubuntu 14.10
-    \item Ubuntu delle macchine di laboratorio
-    \item macOS Mojave
+    \item Xubuntu 14.10 (macchina virtuale)
+    \item Ubuntu 16.04 LTS
+    \item macOS 10.14 Mojave
 \end{itemize}
 
-\section{Struct definite}
+\section{Test aggiuntivi}
+\texttt{make bigblock} e \texttt{make interactive} (quest'ultino richede la presenza di \emph{GNU Readline} nel sistema)
+producono due ulteriori client di test per il progetto.
 
-
+Il comando \texttt{./bigblock <nome>} si registra come \texttt{nome} al server e testa la lettura/scrittura di un blocco di dati di 100MB.
+Per le istruzioni riguardanti \texttt{interactive} leggere il file di testo \texttt{interactive.txt}. 
+(N.B. questi due test richiedono che una istanza del server sia già in esecuzione)
+\section{Elemento della lista}
 \begin{listing}[ht]
     \begin{minted}{C}
     typedef struct linkedlist_elem {
@@ -137,35 +141,10 @@ di natura dinamica o di grandi dimensioni (in modo da evitare situazioni di stac
         pthread_mutex_t mtx;
         pthread_mutex_t *nextmtx;
         struct linkedlist_elem *next;
-    } linkedlist_elem;
+        } linkedlist_elem;
     \end{minted}
-    \caption{Elemento della lista}
+    \caption{\texttt{struct linkedlist\_elem}}
 \end{listing}
-
-\begin{listing}[ht]
-    \begin{minted}{C}
-    typedef struct client_t {
-        char *name;
-        int socketfd;
-        int running;
-        pthread_t worker;
-    } client_t;
-    \end{minted}
-    \caption{Struct per la memorizzazione del client}
-\end{listing}
-
-\begin{listing}[ht]
-    \begin{minted}{C}
-    typedef struct os_msg_t {
-        char *cmd;
-        char *name;
-        size_t len;
-        size_t datalen;    //How much data has been read
-        char *data;
-    } os_msg_t;
-    \end{minted}
-    \caption{Struct per la memorizzazione del client}
-\end{listing}
-\end{appendices}
+\end{appendices}    
 
 \end{document}

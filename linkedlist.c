@@ -43,32 +43,7 @@ linkedlist_elem *linkedlist_search(linkedlist_elem *list, int (*fun)(const void*
 	return NULL;
 }
 
-linkedlist_elem *linkedlist_delete(linkedlist_elem *list, linkedlist_elem *elem) {
-	linkedlist_elem *curr = list;
-	while (curr != NULL && elem != NULL) {
-		linkedlist_elem *next = curr->next;
-		if (curr == elem) { //0: prev ok, next = NULL
-			if (curr->prevmtx) pthread_mutex_lock(curr->prevmtx);
-			if (curr->nextmtx) pthread_mutex_lock(curr->nextmtx);
-			if (elem->prev && elem->next) {
-				(elem->prev)->next = elem->next;	
-				(elem->next)->prev = elem->prev;
-			} else if (!elem->prev) list = elem->next;
-			else if (!elem->next) list = elem->prev; 
-			free(elem->ptr);
-			elem->ptr = NULL;
-			free(elem);
-			elem = NULL;
-			if (curr->prevmtx)pthread_mutex_unlock(curr->prevmtx);
-			if (curr->nextmtx)pthread_mutex_unlock(curr->nextmtx);
-			return list;
-		}
-		curr = next;
-	}
-	return list;	//failure
-}
-
-linkedlist_elem *linkedlist_iter_delete(linkedlist_elem *list, int (*fun)(const void*, void*), void *arg) {
+linkedlist_elem *linkedlist_delete(linkedlist_elem *list, int (*fun)(const void*, void*), void *arg) {
 	linkedlist_elem *curr = list;
 	while (curr != NULL) {
 		linkedlist_elem *next = curr->next;

@@ -14,9 +14,7 @@
 
 	linkedlist_elem *linkedlist_search(linkedlist_elem *list, int (*fun)(const void*, void*), void *arg);
 
-	linkedlist_elem *linkedlist_delete(linkedlist_elem *list, linkedlist_elem *elem);
-
-	linkedlist_elem *linkedlist_iter_delete(linkedlist_elem *list, int (*fun)(const void*, void*), void *arg);
+	linkedlist_elem *linkedlist_delete(linkedlist_elem *list, int (*fun)(const void*, void*), void *arg);
 
 	void linkedlist_free(linkedlist_elem *list);
 	
