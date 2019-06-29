@@ -44,7 +44,9 @@ static int check_response(char *response) {
 }
 
 int os_connect (char *name) {
-    //If we haven't connected yet
+    if (!name) return false;
+	if (strlen(name) < 1) return false;
+	//If we haven't connected yet
     if (objstore_fd < 0) {
         struct sockaddr_un addr;
 	    memset(&addr, 0, sizeof(struct sockaddr_un));
@@ -84,6 +86,8 @@ int os_connect (char *name) {
 }
 
 void *os_retrieve(char *name) {
+	if (!name) return false;
+	if (strlen(name) < 1) return false;
     //Fail if we haven't connected yet
     if (objstore_fd < 0) return NULL;
 
@@ -141,7 +145,9 @@ void *os_retrieve(char *name) {
 }
 
 int os_store(char *name, void *block, size_t len) {
-    if (objstore_fd < 0) return false;
+	if (!name) return false;
+	if (strlen(name) < 1) return false;
+	if (objstore_fd < 0) return false;
     if (!block || len < 1) return false;
 
     //Init header
@@ -174,7 +180,9 @@ int os_store(char *name, void *block, size_t len) {
 }
 
 int os_delete(char *name) {
-    if (objstore_fd < 0) return false;
+	if (!name) return false;
+	if (strlen(name) < 1) return false;
+	if (objstore_fd < 0) return false;
     dprintf(objstore_fd, "DELETE %s \n", name);
 
     char buff[ERRSTR_LEN];
