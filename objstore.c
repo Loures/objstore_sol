@@ -44,7 +44,8 @@ static int check_response(char *response) {
 }
 
 int os_connect (char *name) {
-    if (!name) return false;
+    sprintf(objstore_errstr, "KO Not a valid name\n");
+	if (!name) return false;
 	if (strlen(name) < 1) return false;
 	//If we haven't connected yet
     if (objstore_fd < 0) {
@@ -86,8 +87,9 @@ int os_connect (char *name) {
 }
 
 void *os_retrieve(char *name) {
-	if (!name) return false;
-	if (strlen(name) < 1) return false;
+    sprintf(objstore_errstr, "KO Not a valid name\n");
+	if (!name) return NULL;
+	if (strlen(name) < 1) return NULL;
     //Fail if we haven't connected yet
     if (objstore_fd < 0) return NULL;
 
@@ -145,6 +147,7 @@ void *os_retrieve(char *name) {
 }
 
 int os_store(char *name, void *block, size_t len) {
+    sprintf(objstore_errstr, "KO Not a valid name\n");
 	if (!name) return false;
 	if (strlen(name) < 1) return false;
 	if (objstore_fd < 0) return false;
@@ -180,6 +183,7 @@ int os_store(char *name, void *block, size_t len) {
 }
 
 int os_delete(char *name) {
+    sprintf(objstore_errstr, "KO Not a valid name\n");
 	if (!name) return false;
 	if (strlen(name) < 1) return false;
 	if (objstore_fd < 0) return false;
