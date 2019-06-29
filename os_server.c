@@ -27,6 +27,7 @@ pthread_t dispatcher_thread;
 const char *one = "1";
 
 static void sighandler(int sig) {
+	int err;
 	switch (sig) {
 		case SIGTERM:
 			if (VERBOSE) fprintf(stderr, "OBJSTORE: Received SIGTERM\n");
@@ -42,7 +43,8 @@ static void sighandler(int sig) {
 		
 		case SIGUSR1:
 			//See "self-pipe trick"
-			write(os_signalfd[1], one, 1);
+			err = write(os_signalfd[1], one, 1);
+			if (err < 0) err_write(os_signalfd[1]);
 
 			//SIGUSR1 doesnt terminate the process so we keep waiting for another signal
 			sigemptyset(&sigmask);			
