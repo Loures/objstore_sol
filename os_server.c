@@ -2,11 +2,12 @@
 #include <sys/socket.h>
 #include <sys/un.h>
 #include <sys/poll.h>
+#include <sys/stat.h>
 #include <dispatcher.h>
 #include <fs.h>
 
 sigset_t nosignal;
-linkedlist_elem *client_list = NULL;
+ht_t *client_list[HASHTABLE_SIZE];
 
 size_t SO_READ_BUFFSIZE = 0;
 
@@ -26,6 +27,7 @@ pthread_t dispatcher_thread;
 const char *one = "1";
 
 static void sighandler(int sig) {
+	int err;
 	switch (sig) {
 		case SIGTERM:
 			if (VERBOSE) fprintf(stderr, "OBJSTORE: Received SIGTERM\n");
@@ -41,7 +43,8 @@ static void sighandler(int sig) {
 		
 		case SIGUSR1:
 			//See "self-pipe trick"
-			write(os_signalfd[1], one, 1);
+			err = write(os_signalfd[1], one, 1);
+			if (err < 0) err_write(os_signalfd[1]);
 
 			//SIGUSR1 doesnt terminate the process so we keep waiting for another signal
 			sigemptyset(&sigmask);			
@@ -87,15 +90,12 @@ int main(int argc, char *argv[]) {
     strncpy(socket_address.sun_path, SOCKET_ADDR, sizeof(socket_address.sun_path) - 1);		//-1 so we don't exceed max path size
     
 	//There might be another os_server process running or we might still have a previous socket from a killed os_server process
-    err = unlink(SOCKET_ADDR);     
-	if (err < 0 && errno != ENOENT) {
-		err_unlink(SOCKET_ADDR)
-		return 1;
-	} else if (err == 0) {
+	struct stat sb;
+	if (stat(SOCKET_ADDR, &sb) == 0) {
 		fprintf(stderr, "OBJSTORE: Socket already exists. Terminating execution\n");
-		return 1;
+		exit(EXIT_FAILURE);
 	}
-    
+
 	//Bind the socket
 	err = bind(os_serverfd, (const struct sockaddr*)&socket_address, sizeof(socket_address));      
     if (err < 0) err_socket(os_serverfd);
@@ -107,6 +107,9 @@ int main(int argc, char *argv[]) {
 
 	//Init fs module (i.e create data folder)
 	fs_init();
+
+	//Init client_list
+	memset(client_list, 0, sizeof(ht_t*) * HASHTABLE_SIZE);
 
 	//Create pipe for self-pipe trick
 	err = pipe(os_signalfd);

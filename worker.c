@@ -3,17 +3,24 @@
 #include <sys/socket.h>
 #include <os_client.h>
 
-static int client_comp(const void *ptr, void *arg) {
-    return memcmp(ptr, arg, sizeof(client_t)) == 0;
+static int comp(const void *ptr, void *arg) {
+    client_t *client = (client_t*)ptr;
+    char *name = arg;
+    if (strcmp(client->name, name) == 0) {
+        free(client->name);
+        client->name = NULL;
+        free(client);
+        client = NULL;
+        return 1;
+    }
+    return 0;
 }
 
 void worker_cleanup(int fd, client_t *client) {
     if (VERBOSE) fprintf(stderr, "OBJSTORE: Cleaned up client \'%s\' worker thread\n", client->name);
 
     //Dealloc client struct, remove from client list and close fd
-    if (client->name) free(client->name);
-    client->name = NULL;
-    linkedlist_iter_delete(client_list, &client_comp, &fd);
+    myhash_delete(client_list, HASHTABLE_SIZE, client->name, &comp, client->name);
     close(fd);
 
     //We are done with this client, decrease number of worker threads

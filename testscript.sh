@@ -5,6 +5,8 @@ READ=$(($1 * 3/5));
 DELETE=$(($1 * 2/5))
 
 WORDS=$(shuf -n$WRITE /usr/share/dict/italian)
+#WORDS=$(seq $START $(($START + $WRITE - 1)))
+
 rm testout.log 2> /dev/null
 
 function printstats {
@@ -37,6 +39,8 @@ for line in $WORDS; do
 done
 wait
 
+
+
 for line in $(head -$READ <<< "$WORDS"); do 
     testclient $line 2 &
 done
@@ -45,10 +49,12 @@ done
 for line in $(tail -$DELETE <<< "$WORDS"); do 
     testclient $line 3 &
 done
-wait
+wait 
+
 
 printstats
 
-kill -USR1 $(ps | grep os_server | cut -d" " -f1)
+kill -USR1 $(ps -C os_server -o pid=) 
 wait
-kill -TERM $(ps | grep os_server | cut -d" " -f1)
+kill -TERM $(ps -C os_server -o pid=) 
+
