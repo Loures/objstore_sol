@@ -9,7 +9,7 @@
 	#include <fcntl.h>
 	#include <errno.h>
 	#include <signal.h>
-	#include <linkedlist.h>
+	#include <myhash.h>
 	#include <errormacros.h>
 
 
@@ -34,7 +34,9 @@
 		pthread_t worker;
 	} client_t;
 
-	extern linkedlist_elem* client_list;
+	extern ht_t* client_list[];
+
+	#define HASHTABLE_SIZE 2048
 
 	#define SOCKET_ADDR "/tmp/objstore.sock"
 

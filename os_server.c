@@ -7,7 +7,7 @@
 #include <fs.h>
 
 sigset_t nosignal;
-linkedlist_elem *client_list = NULL;
+ht_t *client_list[HASHTABLE_SIZE];
 
 size_t SO_READ_BUFFSIZE = 0;
 
@@ -107,6 +107,9 @@ int main(int argc, char *argv[]) {
 
 	//Init fs module (i.e create data folder)
 	fs_init();
+
+	//Init client_list
+	memset(client_list, 0, sizeof(ht_t*) * HASHTABLE_SIZE);
 
 	//Create pipe for self-pipe trick
 	err = pipe(os_signalfd);

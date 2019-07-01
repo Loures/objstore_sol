@@ -52,7 +52,7 @@ static void os_client_handleregistration(int fd, client_t *client, const char *n
         send_ko(fd, "You're already registered");
         return;
     }
-    
+    /*
     struct name_fd arg = (struct name_fd){fd, (char*)name};
 
     linkedlist_elem *result = linkedlist_search(client_list, &namecompare, (void*)&arg);
@@ -74,7 +74,7 @@ static void os_client_handleregistration(int fd, client_t *client, const char *n
         send_ok(fd);
     } else {
         send_ko(fd, "Username already exists");
-    }
+    }*/
 }
 
 //LEAVE handler

@@ -4,9 +4,12 @@
 #include <sys/un.h>
 #include <ftw.h>
 #include <worker.h>
+#include <fs.h>
 
 static ssize_t datadir_size = 0;
 static ssize_t datadir_entries = 0;
+
+static const char *ok = "OK \n";
 
 void dispatcher_cleanup() {
     int err = close(os_serverfd);
@@ -19,7 +22,25 @@ void dispatcher_cleanup() {
     if (VERBOSE) fprintf(stderr, "OBJSTORE: %s succesfully unlinked\n", SOCKET_ADDR);
 
     //Free client_list from memory
-    linkedlist_free(client_list);
+    //myhash_free(client_list, HASHTABLE_SIZE);
+}
+
+static void send_ok(int fd) {
+    send(fd, ok, 5, 0);
+}
+
+static void send_ko(int fd, const char *msg) {
+    //5 is the length of "KO \n" and a null terminator
+    char to_send[5 + strlen(msg)]; 
+    sprintf(to_send, "KO %s\n", msg);
+    send(fd, to_send, 5 + strlen(msg), 0);
+}
+
+static int namecompare(const void *ptr, void *arg) {
+    client_t *client = (client_t*)ptr;
+    char *name = (char*)arg;
+    if (client->name) return strcmp(client->name, name) == 0;
+    return 0;
 }
 
 
@@ -44,6 +65,36 @@ static void stats() {
 
 }
 
+client_t *handleregistration(int fd) {
+    char buffer[SO_READ_BUFFSIZE];
+    memset(buffer, 0, SO_READ_BUFFSIZE);
+    recv(fd, (char*)buffer, SO_READ_BUFFSIZE, 0);
+
+    char *saveptr;
+    char *cmd = strtok_r(buffer, " ", &saveptr);
+    char *name = strtok_r(NULL, " ", &saveptr);
+
+    client_t *new = (client_t*)calloc(1, sizeof(client_t));
+    
+    new->socketfd = fd;
+    new->running = 1;
+
+    if (strcmp(cmd, "REGISTER") == 0 && strlen(name) > 0) {
+        new->name = (char*)calloc(strlen(name) + 1, sizeof(char));
+        strcpy(new->name, name);
+        send_ok(fd);
+    }
+
+    client_t *client = (client_t*)myhash_search(client_list, HASHTABLE_SIZE, new->name, &namecompare, new->name);
+    if (client) {
+        close(fd);
+        free(new->name);
+        free(new);
+        return NULL;
+    }
+
+    return new;
+}
 
 void *dispatch(void *arg) {
     //Init pollfd struct
@@ -70,34 +121,25 @@ void *dispatch(void *arg) {
                 err_accept()
             }
 
-            //Init client_t struct
-            client_t *new_client = (client_t*)calloc(1, sizeof(client_t));
-            if (new_client == NULL) {
-                err_malloc(sizeof(client_t));
-                exit(EXIT_FAILURE);
-            }    
-           
-		   	new_client->name = NULL;
-            new_client->socketfd = client_fd;
-            new_client->running = 1;
+            //Receive REGISTER and init client_t struct
+            client_t *new = handleregistration(client_fd);
+            if (new) {
+                fs_mkdir(new);
+                pthread_t *wk = &(new->worker);
 
-            pthread_t *wk = &(new_client->worker);
+                //Add the new client to the client list 
+                myhash_insert(client_list, HASHTABLE_SIZE, new->name, new);
 
-            //Add the new client to the client list 
-            linkedlist_elem *newelem = linkedlist_new(client_list, (void*)new_client);
+                pthread_mutex_lock(&worker_num_mtx);
 
-            pthread_mutex_lock(&worker_num_mtx);
-            
-            //client_list now points to the new head (newelem)
-            client_list = newelem; 
-            worker_num++;   
+                worker_num++;   
 
-            pthread_mutex_unlock(&worker_num_mtx);
+                pthread_mutex_unlock(&worker_num_mtx);
 
-            //Create a worker thread for the client
-            pthread_create(wk, NULL, &worker_loop, (void*)new_client);
-            if (VERBOSE) fprintf(stderr, "OBJSTORE: Client connected on socket %d\n", client_fd);
-           
+                //Create a worker thread for the client
+                pthread_create(wk, NULL, &worker_loop, (void*)new);
+                if (VERBOSE) fprintf(stderr, "OBJSTORE: Client connected on socket %d registered as \"%s\"\n", client_fd, new->name);
+            }
         }
 
         //If there's something on the receiving end of the pipe (got SIGUSR1) then print stats

@@ -3,23 +3,23 @@ LIBNAME=objstore
 CFLAGS=-std=c99 -Wall
 SHELL=/usr/bin/env bash
 		
-SRV_OBJECTS=worker.o dispatcher.o linkedlist.o os_client.o fs.o
+SRV_OBJECTS=worker.o dispatcher.o myhash.o os_client.o fs.o
 
 default_target: all
 
-linkedlist.o: linkedlist.c linkedlist.h
+myhash.o: myhash.c myhash.h
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
 
-dispatcher.o: dispatcher.c dispatcher.h linkedlist.o
+dispatcher.o: dispatcher.c dispatcher.h myhash.o
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@ 
 
-worker.o: worker.c worker.h linkedlist.o
+worker.o: worker.c worker.h myhash.o
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
 
 fs.o: fs.c fs.h
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
 
-os_client.o: os_client.c os_client.h linkedlist.o
+os_client.o: os_client.c os_client.h myhash.o
 	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
 
 os_server: $(SRV_OBJECTS)

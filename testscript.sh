@@ -5,6 +5,8 @@ READ=$(($1 * 3/5));
 DELETE=$(($1 * 2/5))
 
 WORDS=$(shuf -n$WRITE /usr/share/dict/italian)
+#WORDS=$(seq $START $(($START + $WRITE - 1)))
+
 rm testout.log 2> /dev/null
 
 function printstats {
