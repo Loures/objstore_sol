@@ -154,8 +154,8 @@ int os_store(char *name, void *block, size_t len) {
     if (!block || len < 1) return false;
 
     //Init header
-    char header[128];
-    memset(header, 0, 128);
+    char header[512];
+    memset(header, 0, 512);
     sprintf((char*)header, "STORE %s %ld \n ", name, len);
 
     ssize_t headerlen = strlen(header);
