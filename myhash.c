@@ -16,7 +16,7 @@ static unsigned int hash(char* key, ssize_t len) {
     unsigned long h = 0, high;
     while (*key) {
         h = ( h << 4 ) + *key++;
-        if ( high = h & 0xF0000000 ) h ^= high >> 24;
+        if ( (high = h & 0xF0000000) ) h ^= high >> 24;
         h &= ~high;
     }
     return h % len;

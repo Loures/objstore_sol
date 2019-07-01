@@ -35,26 +35,24 @@
 %\addcontentsline{toc}{section}{Scelte progettuali}
 Di seguito vengono presentate le varie scelte progettuali effettuate durante la realizzazione del progetto.
 \subsection{Strutture dati d'appoggio}
-L'unica struttura dati utilizzata all'intero del progetto è \texttt{linkedlist} (lista double-linked concorrente) implementata all'interno
-di \texttt{linkedlist.c}
+L'unica struttura dati utilizzata all'intero del progetto è \texttt{myhash}, una hashtable concorrente con liste di trabocco implementata all'interno
+di \texttt{myhash.c}
 
 Come per tutte le componenti del progetto la implementazione viene linkata all'eseguibile principale come file oggetto.
-\subsubsection{\texttt{linkedlist}}
-La lista double-linked è stata scelta per memorizzare i client connessi al server in un dato istante.
-La scelta è stata dovuta alla facilità di implementazione e all'interesse che mi ha suscitato una sua implementazione in un contesto di programmazione concorrente.
-Le procedure di ricerca \texttt{linkedlist\_search} e cancellazione \texttt{linkedlist\_delete} sono state dotate di un puntatore
-a una procedura esterna che definisce, rispettivamente, i criteri per la ricerca e i criteri per la cancellazione.
+\subsubsection{\texttt{myhash}}
+La hashtable, utilizzata per la memorizzazione dei client connessi in un dato istante, è stat scelta principalmente per la velocità
+garantità nell'accesso e per la facilità di implementazione in un contesto concorrente.
 
+Le procedure \texttt{myhash\_search} e \texttt{myhash\_delete} prendono come argomento una procedura che definisci i criteri secondo il quali restituire un elemento (nel caso della ricerca)
+ed eliminare un elemento (nel caso del cancellamento); all'interno della procedura ausiliaria di cancellazione sono anche presenti le operazioni per gestire la cancellazione da memoria del dato.
 
-\subsubsection{Gestione della concorrenza in \texttt{linkedlist}}
-Per gestire accessi e scritture all'interno della lista è stato implementato un meccanismo di \emph{fine-grained locking}, ritenuto più efficente relativamente
-all'utilizzo che viene fatto della lista all'interno del server, questa ipotesi è poi stata confermata dal confronto dei tempi di esecuzione con una implementazione dotata di un meccanismo di \emph{coarse-grained locking}.
+La funzione hash utilizzata è una variante dell'algoritmo di hashing\\\emph{PJW hash} chiamata \emph{ElfHash}.
+\subsubsection{Gestione della concorrenza in \texttt{myhash}}
+Gli accessi concorrenti in \texttt{myhash} sono regolati da una \emph{readers-writer lock} \texttt{rwlock} per ogni lista di trabocco.
 
-Specificatamente, questo meccanismo è implementato tramite l'utilizzo di una lock: \texttt{mtx}, che blocca un singolo elemento della lista, e due puntatori a lock:
-\texttt{prevmtx}, che punta alla lock dell'elemento precedente della lista (se esiste), e \texttt{nextmtx}, che punta alla lock dell'elemento successivo alla lista (se esiste);
-le lock vengono sempre acquisite e rilasciate nello stesso ordine in modo tale da evitare situazioni di deadlock.
+L'utilizzo di questo tipo di meccanismo di lock permette più accessi concorrenti in lettura (\texttt{myhash\_search}) e garantisce
+la mutua esclusione in scrittura (\texttt{myhash\_insert} e \texttt{myhash\_delete}). 
 
-L'unica accortezza da avere nell'utilizzo di questa implementazione è l'allocare i dati puntati da \texttt{ptr} nell'heap del processo.
 \newpage
 \subsection{Strutturazione del codice}
 Il codice del server è strutturato in moduli che corrispondono a un gruppo di funzionalità separate richieste dal server:
@@ -64,7 +62,7 @@ Il codice del server è strutturato in moduli che corrispondono a un gruppo di f
     Main del server e i meccanismi di gestione delle interruzioni.
     \item \texttt{dispatcher.c}
     
-    Codice relativo al thread dispatcher, e meccanismi di gestione per il segnale \texttt{SIGUSR1}.
+    Codice relativo al thread dispatcher (accettazione connessioni e gestione registrazioni) e meccanismi di gestione del segnale \texttt{SIGUSR1}.
     \item \texttt{worker.c}
     
     Codice relativo ai worker threads e ai meccanismi di ricezione e parsing dei messaggi inviati dai client.
@@ -77,9 +75,9 @@ Il codice del server è strutturato in moduli che corrispondono a un gruppo di f
     
     Definizione di procedure inerenti la scrittura e lettura dal file system dei dati inviati dai client e dei dati da inviare ai client.
     
-    \item \texttt{linkedlist.c}
+    \item \texttt{myhash.c}
     
-    Implementazione di una lista double-linked concorrente.
+    Implementazione di una hashtable concorrente.
 \end{itemize}
 \smallskip
 Il codice dell'interfaccia è interamente contenuto all'interno di \texttt{objstore.c}.
@@ -131,19 +129,20 @@ producono due ulteriori client di test per il progetto.
 Il comando \texttt{./bigblock <nome>} si registra come \texttt{nome} al server e testa la lettura/scrittura di un blocco di dati di 100MB.
 Per le istruzioni riguardanti \texttt{interactive} leggere il file di testo \texttt{interactive.txt}. 
 (N.B. questi due test richiedono che una istanza del server sia già in esecuzione)
-\section{Elemento della lista}
+\section{Funzione hash}
 \begin{listing}[ht]
     \begin{minted}{C}
-    typedef struct linkedlist_elem {
-        void *ptr;
-        struct linkedlist_elem *prev;
-        pthread_mutex_t *prevmtx;
-        pthread_mutex_t mtx;
-        pthread_mutex_t *nextmtx;
-        struct linkedlist_elem *next;
-        } linkedlist_elem;
+static unsigned int hash(char* key, ssize_t len) {
+    unsigned long h = 0, high;
+    while (*key) {
+        h = ( h << 4 ) + *key++;
+        if ( (high = h & 0xF0000000) ) h ^= high >> 24;
+        h &= ~high;
+    }
+    return h % len;
+}
     \end{minted}
-    \caption{\texttt{struct linkedlist\_elem}}
+    \caption{\emph{ElfHash}}
 \end{listing}
 \end{appendices}    
 

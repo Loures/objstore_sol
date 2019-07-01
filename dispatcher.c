@@ -90,7 +90,8 @@ client_t *handleregistration(int fd) {
         close(fd);
         free(new->name);
         free(new);
-        return NULL;
+        send_ko(fd, "Username already registered");
+		return NULL;
     }
 
     return new;
