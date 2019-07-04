@@ -5,8 +5,6 @@
     #include <sys/un.h>
     #include <errormacros.h>
 
-    #define SOCKET_ADDR "/tmp/objstore.sock"
-
 	extern size_t LAST_LENGTH;
     extern char objstore_errstr[];
 

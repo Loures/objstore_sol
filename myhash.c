@@ -63,51 +63,45 @@ ll_elem_t *ll_delete(ll_elem_t *head, int (*fun)(const void *data, void *a), voi
     return head;
 }
 
-int myhash_insert(ht_t *ht[], ssize_t len, char *key, void *data) {
+void myhash_init(ht_t *ht, ssize_t len, ssize_t granularity) {
+    ht->table = (ll_elem_t**)calloc(len, sizeof(ll_elem_t*));
+    ht->locks = (pthread_rwlock_t*)calloc(granularity, sizeof(pthread_rwlock_t));
+    ht->granularity = len / granularity;
+    for (int i = 0; i < granularity; i++) ht->locks[i] = (pthread_rwlock_t)PTHREAD_RWLOCK_INITIALIZER;
+}
+
+int myhash_insert(ht_t *ht, ssize_t len, char *key, void *data) {
     ssize_t position = hash(key, len);
-    if (ht[position] && ht[position]->head) {
-        pthread_rwlock_wrlock(&ht[position]->lock);
-        ht[position]->head = ll_insert(ht[position]->head, data);
-        pthread_rwlock_unlock(&ht[position]->lock);
-    } else {
-        ht[position] = (ht_t*)calloc(1, sizeof(ht_t));
-        ht[position]->head = ll_insert(NULL, data);
-        ht[position]->lock = (pthread_rwlock_t)PTHREAD_RWLOCK_INITIALIZER;
-    }
+
+    pthread_rwlock_wrlock(&ht->locks[position / ht->granularity]);
+    ht->table[position] = ll_insert(ht->table[position], data);
+    pthread_rwlock_unlock(&ht->locks[position / ht->granularity]);
+
     return 1;
 }
 
-void *myhash_search(ht_t *ht[], ssize_t len, char *key, int (*fun)(const void *data, void *a), void *arg) {
+void *myhash_search(ht_t *ht, ssize_t len, char *key, int (*fun)(const void *data, void *a), void *arg) {
     ssize_t position = hash(key, len);
-    if (ht[position] && ht[position]->head) {
-        pthread_rwlock_rdlock(&ht[position]->lock);
-        void *result = ll_search(ht[position]->head, fun, arg);
-        pthread_rwlock_unlock(&ht[position]->lock);
+    if (ht->table[position]) {
+        pthread_rwlock_rdlock(&ht->locks[position / ht->granularity]);
+        void *result = ll_search(ht->table[position], fun, arg);
+        pthread_rwlock_unlock(&ht->locks[position / ht->granularity]);
         return result;
     }
     return NULL;
 }
 
-void myhash_delete(ht_t *ht[], ssize_t len, char *key, int (*fun)(const void *data, void *a), void *arg) {
+void myhash_delete(ht_t *ht, ssize_t len, char *key, int (*fun)(const void *data, void *a), void *arg) {
     ssize_t position = hash(key, len);
-    if (ht[position] && ht[position]->head) {
-        pthread_rwlock_wrlock(&ht[position]->lock);
-        ht[position]->head = ll_delete(ht[position]->head, fun, arg);
-        pthread_rwlock_unlock(&ht[position]->lock);
-        
-        if (ht[position]->head == NULL) {
-            free(ht[position]);
-            ht[position] = NULL;
-        }
+    if (ht->table[position]) {
+        pthread_rwlock_wrlock(&ht->locks[position / ht->granularity]);
+        ht->table[position] = ll_delete(ht->table[position], fun, arg);
+        pthread_rwlock_unlock(&ht->locks[position / ht->granularity]);
     }
 }
 
-//void myhash_free(ht_t *ht[], ssize_t len) {
-//    for (int i = 0; i < len; i++) {
-//        if (ht[i]) {
-//            printf("dr doom\n");
-//            free(ht[i]);
-//            ht[i] = NULL;
-//        }
-//    }
-//}
+void myhash_free(ht_t *ht, ssize_t len) {
+    free(ht->table);
+    free(ht->locks);
+    free(ht);
+}

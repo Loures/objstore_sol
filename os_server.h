@@ -34,10 +34,11 @@
 		pthread_t worker;
 	} client_t;
 
-	extern ht_t* client_list[];
+	extern ht_t *client_list;
 
 	#define HASHTABLE_SIZE 2048
-
+	#define HASHTABLE_LOCKS 256
+	
 	#define SOCKET_ADDR "/tmp/objstore.sock"
 
 	#define discardsignals(sgn) \

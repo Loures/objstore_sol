@@ -22,7 +22,7 @@ void dispatcher_cleanup() {
     if (VERBOSE) fprintf(stderr, "OBJSTORE: %s succesfully unlinked\n", SOCKET_ADDR);
 
     //Free client_list from memory
-    //myhash_free(client_list, HASHTABLE_SIZE);
+    myhash_free(client_list, HASHTABLE_SIZE);
 }
 
 static void send_ok(int fd) {
