@@ -7,26 +7,13 @@ SRV_OBJECTS=worker.o dispatcher.o myhash.o os_client.o fs.o
 
 default_target: all
 
-myhash.o: myhash.c myhash.h
-	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
-
-dispatcher.o: dispatcher.c dispatcher.h
-	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@ 
-
-worker.o: worker.c worker.h
-	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
-
-fs.o: fs.c fs.h
-	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
-
-os_client.o: os_client.c os_client.h
-	$(CC) $(CFLAGS) $(CPPFLAGS) -c $< -o $@
-
-os_server: $(SRV_OBJECTS) os_server.h
-	$(CC) $(CFLAGS) -O3 $(CPPFLAGS) $(SRV_OBJECTS) os_server.c -o $@ -lpthread
+%.o: %.c %.h os_server.h
 
 lib$(LIBNAME).a: $(LIBNAME).o $(LIBNAME).h
 	$(AR) rcs $@ $<
+
+os_server: $(SRV_OBJECTS) os_server.h
+	$(CC) $(CFLAGS) -O3 $(CPPFLAGS) $(SRV_OBJECTS) os_server.c -o $@ -lpthread
 
 client: client.c libobjstore.a
 	$(CC) $(CFLAGS) -L. $(CPPFLAGS) -DERRSTR=objstore_errstr $< -o $@ -l$(LIBNAME)
