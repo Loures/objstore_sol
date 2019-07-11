@@ -82,17 +82,18 @@ client_t *handleregistration(int fd) {
     if (strcmp(cmd, "REGISTER") == 0 && strlen(name) > 0) {
         new->name = (char*)calloc(strlen(name) + 1, sizeof(char));
         strcpy(new->name, name);
-        send_ok(fd);
     }
 
     client_t *client = (client_t*)myhash_search(client_list, HASHTABLE_SIZE, new->name, &namecompare, new->name);
     if (client) {
+        send_ko(fd, "Username already registered");
         close(fd);
         free(new->name);
         free(new);
-        send_ko(fd, "Username already registered");
 		return NULL;
     }
+    
+    send_ok(fd);
 
     return new;
 }
