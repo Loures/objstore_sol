@@ -9,7 +9,7 @@
 sigset_t nosignal;
 ht_t *client_list = NULL;
 
-size_t SO_READ_BUFFSIZE = 0;
+size_t SO_READ_BUFFSIZE = 0;  
 
 int os_signalfd[2];
 

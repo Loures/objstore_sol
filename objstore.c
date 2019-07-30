@@ -154,23 +154,10 @@ int os_store(char *name, void *block, size_t len) {
     if (!block || len < 1) return false;
 
     //Init header
-    char header[512];
-    memset(header, 0, 512);
-    sprintf((char*)header, "STORE %s %ld \n ", name, len);
+    dprintf(objstore_fd, "STORE %s %ld \n", name, len);
+    send(objstore_fd, " ", 1, 0);
+    send(objstore_fd, block, len, 0);
 
-    ssize_t headerlen = strlen(header);
-
-    //Init server message
-    char *tosend = (char*)calloc(headerlen + len, sizeof(char));
-
-    //Write header
-    memcpy(tosend, header, headerlen);
-    
-    //Write rest of the data and send it
-    memcpy(tosend + headerlen, block, len);
-    send(objstore_fd, tosend, headerlen + len, 0);
-
-    free(tosend);
     char buff[ERRSTR_LEN];
     memset(buff, 0, ERRSTR_LEN);
 

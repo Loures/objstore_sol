@@ -99,37 +99,42 @@ int fs_read(int cfd, client_t *client, char *filename) {
     //Get file size in bytes and alloc such size
     struct stat sb;
     fstat(fd, &sb);
-    char *buff = (char*)calloc(sb.st_size, sizeof(char));
-    
-    size_t readlen = read(fd, buff, (ssize_t)(sb.st_size));
-    if (readlen < 0) {
-        err_read(fd);
-        return 0;
-    }
-    if (VERBOSE) fprintf(stderr, "OBJSTORE: Read %ld bytes from file \"%s\"\n", readlen, path);
-    close(fd);
 
     //Convert size_t len to a string
-    char len[sizeof(ssize_t) + 1];
-    memset(len, 0, sizeof(ssize_t) + 1);
-    sprintf(len, "%ld", readlen);
-    
-    //Length of "DATA len \n " + size of file
-    ssize_t response_len = strlen(retrieve) + strlen(len) + 3 + readlen;
+    char len[64];
+    memset(len, 0, 64);
+    sprintf(len, "%ld", sb.st_size);
 
-    char *response = (char*)calloc(response_len, sizeof(char));
+    ssize_t response_len = strlen(retrieve) + strlen(len) + 3;
+    
+    char *response = (char*)calloc(response_len + sb.st_size, sizeof(char));
     if (response == NULL) {
         err_malloc(response_len);
         exit(EXIT_FAILURE);
     } 
+    
+    size_t readlen = read(fd, response + response_len, (ssize_t)(sb.st_size));
+    if (readlen < 0) {
+        err_read(fd);
+        return 0;
+    }
+    
+    if (VERBOSE) fprintf(stderr, "OBJSTORE: Read %ld bytes from file \"%s\"\n", readlen, path);
+    close(fd);
+
+    
+    //Length of "DATA len \n " + size of file
+
 
     //Setup RETRIEVE response message and send it
-    sprintf(response, "DATA %s \n ", len);
-    memcpy(response + (strlen(retrieve) + strlen(len) + 3), buff, readlen);
-    send(cfd, (char*)response, response_len, 0);
+    
+    char temp[response_len];
+    sprintf(temp, "DATA %s \n ", len);
+    memcpy(response, temp, response_len);
+
+    send(cfd, (char*)response, response_len + sb.st_size, 0);
 
     free(response);
-    free(buff);
 
     return 1;   
 }

@@ -17,10 +17,17 @@ static int comp(const void *ptr, void *arg) {
 }
 
 void worker_cleanup(int fd, client_t *client) {
-    if (VERBOSE) fprintf(stderr, "OBJSTORE: Cleaned up client \'%s\' worker thread\n", client->name);
+    if (VERBOSE) {
+        if (client->name) fprintf(stderr, "OBJSTORE: Cleaned up client \'%s\' worker thread\n", client->name);
+        else fprintf(stderr, "OBJSTORE: Cleaned up unregistered client (fd %d) worker thread\n", fd);
+    }
 
-    //Dealloc client struct, remove from client list and close fd
-    myhash_delete(client_list, HASHTABLE_SIZE, client->name, &comp, client->name);
+    //Dealloc client struct, remove from client list and close fd, if client doesn't have a name, just free it.
+    if (client->name) myhash_delete(client_list, HASHTABLE_SIZE, client->name, &comp, client->name);
+    else {
+        free(client);
+        client = NULL;
+    }
     close(fd);
 
     //We are done with this client, decrease number of worker threads
@@ -70,8 +77,7 @@ os_msg_t *worker_handlemsg(int fd, char *buff, size_t buffsize) {
         if (msg->name == NULL) {
             err_malloc(strlen(name) + 1);
             exit(EXIT_FAILURE);
-        }
-        
+        }    
         strcpy(msg->name, name);
     }
     
@@ -84,9 +90,11 @@ os_msg_t *worker_handlemsg(int fd, char *buff, size_t buffsize) {
         size_t headerlen = strlen(cmd) + 1 + strlen(name) + 1 + strlen(len) + 3;
         
         //Alloc memory for data
-        msg->data = (char*)calloc(msg->len, sizeof(char));
+        size_t calloc_size = 0;
+        if (msg->len > SO_READ_BUFFSIZE) calloc_size = SO_READ_BUFFSIZE; else calloc_size = msg->len;
+        msg->data = (char*)calloc(calloc_size, sizeof(char));
         if (msg->data == NULL) {
-            err_malloc(msg->len);
+            err_malloc(SO_READ_BUFFSIZE);
             exit(EXIT_FAILURE);
         }
         
@@ -103,38 +111,68 @@ os_msg_t *worker_handlemsg(int fd, char *buff, size_t buffsize) {
     }    
 }
 
-void *worker_loop(void *ptr) {
-    client_t *client = (client_t*)ptr;
-    
+static client_t *initclient(int fd) {
+    client_t *client = (client_t*)calloc(1, sizeof(client_t));
+    client->socketfd = fd;
+    client->running = 1;
+    client->name = NULL;
+    client->worker = pthread_self();
+    return client;
+}
+
+static int headercheck(char *buff, size_t len) {
+    //5 is the length of the shortest command
+    if (len < 5) return 0;
+
+    //Handle STORE command
+    if (strncmp(buff, "STORE", 5) == 0) {
+        return strstr(buff, " \n ") != NULL;
+    }
+
+    //Handle everything else
+    return strstr(buff, " \n") != NULL;
+}
+
+void *worker_loop(void *ptr) { 
      //store socket fd on stack (faster access)
-    int client_socketfd = client->socketfd;    
+    int client_socketfd = *(int*)ptr;    
+    free(ptr);
 
     //Init read buffer on stack
     char buffer[SO_READ_BUFFSIZE];
     memset(buffer, 0, SO_READ_BUFFSIZE); 
 
+    client_t *client = initclient(client_socketfd);
+
+    size_t msg_len = 0;
+
     struct pollfd pollfds[1];
     pollfds[0] = (struct pollfd){client_socketfd, POLLIN, 0};
 
-    while(OS_RUNNING && client->running == 1) {
+    while(OS_RUNNING && client->running) {
         //Start polling socket file descriptor
         int ev = poll(pollfds, 1, 10);    
         if (ev < 0) err_select(client_socketfd);
         if (ev == 1 && (pollfds[0].revents & POLLIN)) {
-            size_t len = recv(client_socketfd, (char*)buffer, SO_READ_BUFFSIZE, 0);
-            os_msg_t *msg = worker_handlemsg(client_socketfd, (char*)buffer, len);
+            size_t len = recv(client_socketfd, (char*)(buffer + msg_len), SO_READ_BUFFSIZE, 0);
+            msg_len = msg_len + len;
 
-            //Begin handling message
-            if (msg->cmd) {
-                os_client_commandhandler(client_socketfd, client, msg);
+            if (headercheck(buffer, msg_len)) {
+                os_msg_t *msg = worker_handlemsg(client_socketfd, (char*)buffer, msg_len);
+
+                //Begin handling message
+                if (msg->cmd) {
+                    os_client_commandhandler(client_socketfd, client, msg);
+                }
+
+                //...then free it
+                free_os_msg(msg);
+                msg_len = 0;
             }
-
-            //...then free it
-            free_os_msg(msg);
 
             //Client has terminated without disconnecting or something else bad happened
             if (len <= 0) {     
-                if (VERBOSE) fprintf(stderr, "OBJSTORE: Client on socket %d has terminated without disconnecting\n", client_socketfd);
+                if (VERBOSE) fprintf(stderr, "OBJSTORE: Client on fd %d disconnected\n", client_socketfd);
                 break;
             }
         }
