@@ -22,14 +22,20 @@ static int getcommand(os_msg_t *msg) {
 
 //Helper functions for sending OKs or KOs
 static void send_ok(int fd) {
-    send(fd, ok, 5, 0);
+    ssize_t result = sendn(fd, ok, 5, 0);
+
+    if (result < 0) err_write(fd);
+
 }
 
 static void send_ko(int fd, const char *msg) {
     //5 is the length of "KO \n" and a null terminator
     char to_send[5 + strlen(msg)]; 
     sprintf(to_send, "KO %s\n", msg);
-    send(fd, to_send, 5 + strlen(msg), 0);
+    ssize_t result = sendn(fd, to_send, 5 + strlen(msg), 0);
+    
+    if (result < 0) err_write(fd);
+
 }
 
 static int namecompare(const void *ptr, void *arg) {

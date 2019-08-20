@@ -26,7 +26,8 @@
 	extern pthread_mutex_t worker_num_mtx;
 	extern pthread_cond_t worker_num_cond;
 	
-	
+	ssize_t sendn(int sockfd, const void *buf, size_t len, int flags);
+
 	typedef struct client_t {
 		char *name;
 		int socketfd;

@@ -26,6 +26,16 @@ pthread_t dispatcher_thread;
 
 const char *one = "1";
 
+ssize_t sendn(int sockfd, const void *buf, size_t len, int flags) {
+	size_t wrote = 0;
+	while (wrote < len) {
+		ssize_t bytes = send(sockfd, buf, len, flags);
+		if (bytes < 0) return bytes;
+		wrote = wrote + len;
+	}
+	return wrote;
+}
+
 static void sighandler(int sig) {
 	int err;
 	switch (sig) {

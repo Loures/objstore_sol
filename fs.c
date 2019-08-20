@@ -59,7 +59,13 @@ int fs_write(int cfd, client_t *client, char *filename, size_t len, char *data, 
         while (wrotelen < len) {
             memset(buff, 0, SO_READ_BUFFSIZE);
             ssize_t bufflen = recv(cfd, buff, SO_READ_BUFFSIZE, 0);
+            if (bufflen < 0) err_read(cfd);
+
             ssize_t wlen = write(fd, buff, bufflen);
+            if (wlen < 0) {
+                err_write(fd);
+                return 0;
+            }        
             wrotelen = wrotelen + wlen;
         }
     }
@@ -132,7 +138,12 @@ int fs_read(int cfd, client_t *client, char *filename) {
     sprintf(temp, "DATA %s \n ", len);
     memcpy(response, temp, response_len);
 
-    send(cfd, (char*)response, response_len + sb.st_size, 0);
+    ssize_t result = sendn(cfd, (char*)response, response_len + sb.st_size, 0);
+    
+    if (result < 0) {
+        err_write(cfd);
+        return 0;
+    }
 
     free(response);
 

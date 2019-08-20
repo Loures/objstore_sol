@@ -157,6 +157,7 @@ void *worker_loop(void *ptr) {
             size_t len = recv(client_socketfd, (char*)(buffer + msg_len), SO_READ_BUFFSIZE, 0);
             msg_len = msg_len + len;
 
+            //Check if we got ATLEAST an header, otherwise keep reading (recv)
             if (headercheck(buffer, msg_len)) {
                 os_msg_t *msg = worker_handlemsg(client_socketfd, (char*)buffer, msg_len);
 

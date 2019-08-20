@@ -26,6 +26,47 @@ sighandler_t prevsignal;
 //Contains last error message (KO ...)
 char objstore_errstr[ERRSTR_LEN];
 
+//recvn (readn)
+
+static int headercheck(char *buff, size_t len) {
+    //2 is the length of the shortest reply (OK, KO)
+    if (len < 2) return 0;
+
+    //Handle DATA command
+    if (strncmp(buff, "DATA", 4) == 0) {
+        return strstr(buff, " \n ") != NULL;
+    }
+
+    //Handle everything else
+    return strstr(buff, " \n") != NULL;
+}
+
+ssize_t sendn(int sockfd, const void *buf, size_t len, int flags) {
+	size_t wrote = 0;
+	while (wrote < len) {
+		ssize_t bytes = send(sockfd, buf, len, flags);
+		if (bytes < 0) return bytes;
+		wrote = wrote + len;
+	}
+	return wrote;
+}
+
+ssize_t recvn (int socket, void *buffer, size_t length, int flags) {
+    ssize_t received = 0;
+    while (!headercheck(buffer, received)) {
+        ssize_t result = recv(socket, buffer + received, length, flags);
+        if (result < 0) {
+            err_read(socket);
+            return 0;
+        
+        }
+        received = received + result;
+    }
+    return received;
+}
+
+
+
 static int check_response(char *response) {
     //Reset objstore_errstr and copy command response into it
     memset(objstore_errstr, 0, 256);
@@ -77,7 +118,7 @@ int os_connect (char *name) {
     dprintf(objstore_fd, "REGISTER %s \n", name);
 
     //Get and return response
-    size_t recv_len = recv(objstore_fd, buff, ERRSTR_LEN, 0);
+    size_t recv_len = recvn(objstore_fd, buff, ERRSTR_LEN, 0);
     if (recv_len <= 0) {
         if (recv_len < 0) err_read(objstore_fd);
         return false;
@@ -103,7 +144,7 @@ void *os_retrieve(char *name) {
     memset(saveptr, 0, SO_READ_BUFFSIZE);
     
     //Receive data
-    size_t buffsize = recv(objstore_fd, buff, SO_READ_BUFFSIZE, 0);
+    size_t buffsize = recvn(objstore_fd, buff, SO_READ_BUFFSIZE, 0);
     
     //Length of "OK \n" is 4 + null terminator = 5
     char isok[5];   
@@ -154,14 +195,14 @@ int os_store(char *name, void *block, size_t len) {
     if (!block || len < 1) return false;
 
     //Init header
-    dprintf(objstore_fd, "STORE %s %ld \n", name, len);
-    send(objstore_fd, " ", 1, 0);
-    send(objstore_fd, block, len, 0);
+    dprintf(objstore_fd, "STORE %s %ld \n ", name, len);
+    //sendn(objstore_fd, " ", 1, 0);
+    sendn(objstore_fd, block, len, 0);
 
     char buff[ERRSTR_LEN];
     memset(buff, 0, ERRSTR_LEN);
 
-    size_t recv_len = recv(objstore_fd, buff, ERRSTR_LEN, 0);
+    size_t recv_len = recvn(objstore_fd, buff, ERRSTR_LEN, 0);
     if (recv_len <= 0) {
         if (recv_len < 0) err_read(objstore_fd);
         return false;
@@ -179,7 +220,7 @@ int os_delete(char *name) {
     char buff[ERRSTR_LEN];
     memset(buff, 0, ERRSTR_LEN);
     
-    size_t recv_len = recv(objstore_fd, buff, ERRSTR_LEN, 0);
+    size_t recv_len = recvn(objstore_fd, buff, ERRSTR_LEN, 0);
     if (recv_len <= 0) {
         if (recv_len < 0) err_read(objstore_fd);
         return false;
@@ -197,7 +238,7 @@ int os_disconnect() {
 
     char recv_ok[5];
     memset(recv_ok, 0, 5);   
-    recv(objstore_fd, recv_ok, 5, 0);
+    recvn(objstore_fd, recv_ok, 5, 0);
 
     //Close socket connection
     close(objstore_fd);
