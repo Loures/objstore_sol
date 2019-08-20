@@ -73,9 +73,11 @@ void myhash_init(ht_t *ht, ssize_t len, ssize_t granularity) {
 int myhash_insert(ht_t *ht, ssize_t len, char *key, void *data) {
     ssize_t position = hash(key, len);
 
-    pthread_rwlock_wrlock(&ht->locks[position / ht->granularity]);
+    int err = pthread_rwlock_wrlock(&ht->locks[position / ht->granularity]);
+    if (err != 0) err_pthread("pthread_rwlock_wrlock");
     ht->table[position] = ll_insert(ht->table[position], data);
-    pthread_rwlock_unlock(&ht->locks[position / ht->granularity]);
+    err = pthread_rwlock_unlock(&ht->locks[position / ht->granularity]);
+    if (err != 0) err_pthread("pthread_rwlock_unlock");
 
     return 1;
 }
@@ -83,9 +85,11 @@ int myhash_insert(ht_t *ht, ssize_t len, char *key, void *data) {
 void *myhash_search(ht_t *ht, ssize_t len, char *key, int (*fun)(const void *data, void *a), void *arg) {
     ssize_t position = hash(key, len);
     if (ht->table[position]) {
-        pthread_rwlock_rdlock(&ht->locks[position / ht->granularity]);
+        int err = pthread_rwlock_rdlock(&ht->locks[position / ht->granularity]);
+        if (err != 0) err_pthread("pthread_rdlock_wrlock");
         void *result = ll_search(ht->table[position], fun, arg);
-        pthread_rwlock_unlock(&ht->locks[position / ht->granularity]);
+        err = pthread_rwlock_unlock(&ht->locks[position / ht->granularity]);
+        if (err != 0) err_pthread("pthread_rwlock_unlock");
         return result;
     }
     return NULL;
@@ -94,9 +98,11 @@ void *myhash_search(ht_t *ht, ssize_t len, char *key, int (*fun)(const void *dat
 void myhash_delete(ht_t *ht, ssize_t len, char *key, int (*fun)(const void *data, void *a), void *arg) {
     ssize_t position = hash(key, len);
     if (ht->table[position]) {
-        pthread_rwlock_wrlock(&ht->locks[position / ht->granularity]);
+        int err = pthread_rwlock_wrlock(&ht->locks[position / ht->granularity]);
+        if (err != 0) err_pthread("pthread_rwlock_wrlock");
         ht->table[position] = ll_delete(ht->table[position], fun, arg);
-        pthread_rwlock_unlock(&ht->locks[position / ht->granularity]);
+        err = pthread_rwlock_unlock(&ht->locks[position / ht->granularity]);
+        if (err != 0) err_pthread("pthread_rwlock_unlock");
     }
 }
 

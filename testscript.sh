@@ -10,23 +10,23 @@ WORDS=$(shuf -n$WRITE /usr/share/dict/italian)
 rm testout.log 2> /dev/null
 
 function printstats {
-	TEST1=$(grep -c "Test 1 passato" testout.log)
-	TEST2=$(grep -c "Test 2 passato" testout.log)
-	TEST3=$(grep -c "Test 3 passato" testout.log)
-	echo "Test tipo 1 passati: $TEST1"
-    grep "Test tipo 1 non passato" testout.log
-	echo "Test tipo 1 non passati: $(($WRITE - $TEST1))"
-	echo "Test tipo 2 passati: $TEST2"
-    grep "Test tipo 2 non passato" testout.log
-	echo "Test tipo 2 non passati: $(($READ - $TEST2))"
-	echo "Test tipo 3 passati: $TEST3"
-    grep "Test tipo 3 non passato" testout.log
-	echo "Test tipo 3 non passati: $(($DELETE - $TEST3))"
+	TEST1=$(grep -c "Test 1 non passato" testout.log)
+	TEST2=$(grep -c "Test 2 non passato" testout.log)
+	TEST3=$(grep -c "Test 3 non passato" testout.log)
+	echo "Test tipo 1 passati: $(($WRITE - $TEST1))"
+    #grep "Test tipo 1 non passato" testout.log
+	echo "Test tipo 1 non passati: $TEST1"
+	echo "Test tipo 2 passati: $(($READ - $TEST2))"
+    #grep "Test tipo 2 non passato" testout.log
+	echo "Test tipo 2 non passati: $TEST2"
+	echo "Test tipo 3 passati: $(($DELETE -$TEST3))"
+    #grep "Test tipo 3 non passato" testout.log
+	echo "Test tipo 3 non passati: $TEST3"
 }
 
 function testclient {
     ./client $1 $2 > /dev/null
-    if [ $? -eq 1 ]; then
+    if [ $? -gt 0 ]; then
         echo "Client '$1': Test $2 non passato" >> testout.log
         return 1
     else

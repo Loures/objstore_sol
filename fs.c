@@ -6,6 +6,16 @@
 const char *DATA_PATH = "data";
 const char *retrieve = "DATA ";
 
+ssize_t sendn(int sockfd, const void *buf, size_t len, int flags) {
+	size_t wrote = 0;
+	while (wrote < len) {
+		ssize_t bytes = send(sockfd, buf, len, flags);
+		if (bytes < 0) return bytes;
+		wrote = wrote + len;
+	}
+	return wrote;
+}
+
 //Create the data folder
 void fs_init() {
     int err = mkdir(DATA_PATH, S_IRWXU | S_IRGRP | S_IROTH);    //rwxr--r--
@@ -59,7 +69,13 @@ int fs_write(int cfd, client_t *client, char *filename, size_t len, char *data, 
         while (wrotelen < len) {
             memset(buff, 0, SO_READ_BUFFSIZE);
             ssize_t bufflen = recv(cfd, buff, SO_READ_BUFFSIZE, 0);
+            if (bufflen < 0) err_read(cfd);
+
             ssize_t wlen = write(fd, buff, bufflen);
+            if (wlen < 0) {
+                err_write(fd);
+                return 0;
+            }        
             wrotelen = wrotelen + wlen;
         }
     }
@@ -132,7 +148,12 @@ int fs_read(int cfd, client_t *client, char *filename) {
     sprintf(temp, "DATA %s \n ", len);
     memcpy(response, temp, response_len);
 
-    send(cfd, (char*)response, response_len + sb.st_size, 0);
+    ssize_t result = sendn(cfd, (char*)response, response_len + sb.st_size, 0);
+    
+    if (result < 0) {
+        err_write(cfd);
+        return 0;
+    }
 
     free(response);
 

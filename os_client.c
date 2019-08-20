@@ -22,14 +22,20 @@ static int getcommand(os_msg_t *msg) {
 
 //Helper functions for sending OKs or KOs
 static void send_ok(int fd) {
-    send(fd, ok, 5, 0);
+    ssize_t result = sendn(fd, ok, 5, 0);
+
+    if (result < 0) err_write(fd);
+
 }
 
 static void send_ko(int fd, const char *msg) {
     //5 is the length of "KO \n" and a null terminator
     char to_send[5 + strlen(msg)]; 
     sprintf(to_send, "KO %s\n", msg);
-    send(fd, to_send, 5 + strlen(msg), 0);
+    ssize_t result = sendn(fd, to_send, 5 + strlen(msg), 0);
+    
+    if (result < 0) err_write(fd);
+
 }
 
 static int namecompare(const void *ptr, void *arg) {
@@ -43,6 +49,7 @@ static client_t *os_client_handleregistration(int fd, client_t *client, char *na
     client->socketfd = fd;
     client->running = 1;
 
+    //Check for name duplicate
     client_t *dup = (client_t*)myhash_search(client_list, HASHTABLE_SIZE, name, &namecompare, name);
     if (dup) {
         send_ko(fd, "Username already registered");
@@ -50,8 +57,14 @@ static client_t *os_client_handleregistration(int fd, client_t *client, char *na
 		return NULL;
     }
 
-    client->name = (char*)calloc(strlen(name) + 1, sizeof(char));
-    strcpy(client->name, name);
+    //...no dupe (truncate name if longer than 255 chars)
+    client->name = (char*)calloc(256, sizeof(char));
+    if (client->name == NULL) {
+        err_malloc((size_t)256);
+        exit(EXIT_FAILURE);
+    }
+
+    strncpy(client->name, name, 255);
 
     
     myhash_insert(client_list, HASHTABLE_SIZE, client->name, client);

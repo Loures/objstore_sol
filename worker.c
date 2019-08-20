@@ -3,6 +3,7 @@
 #include <sys/socket.h>
 #include <os_client.h>
 
+//Compare names and free client
 static int comp(const void *ptr, void *arg) {
     client_t *client = (client_t*)ptr;
     char *name = arg;
@@ -31,10 +32,15 @@ void worker_cleanup(int fd, client_t *client) {
     close(fd);
 
     //We are done with this client, decrease number of worker threads
-    pthread_mutex_lock(&worker_num_mtx);
+    int err = pthread_mutex_lock(&worker_num_mtx);
+    if (err != 0) err_pthread("pthread_mutex_lock");
     worker_num--;
-    if (worker_num <= 0) pthread_cond_signal(&worker_num_cond);
-    pthread_mutex_unlock(&worker_num_mtx);
+    if (worker_num <= 0) {
+        err = pthread_cond_signal(&worker_num_cond);
+        if (err != 0) err_pthread("pthread_cond_signal");
+    }
+    err = pthread_mutex_unlock(&worker_num_mtx);
+    if (err != 0) err_pthread("pthread_mutex_unlock");
 
 }
 
@@ -73,12 +79,12 @@ os_msg_t *worker_handlemsg(int fd, char *buff, size_t buffsize) {
 
     //Set name field of message if it exists
     if (name && name[0] != '\n') {
-        msg->name = (char*)malloc(sizeof(char) * (strlen(name) + 1)); 
+        msg->name = (char*)calloc(256, sizeof(char)); 
         if (msg->name == NULL) {
-            err_malloc(strlen(name) + 1);
+            err_malloc((size_t)256);
             exit(EXIT_FAILURE);
         }    
-        strcpy(msg->name, name);
+        strncpy(msg->name, name, 255);
     }
     
     //Set len field of message if it exists
@@ -113,6 +119,12 @@ os_msg_t *worker_handlemsg(int fd, char *buff, size_t buffsize) {
 
 static client_t *initclient(int fd) {
     client_t *client = (client_t*)calloc(1, sizeof(client_t));
+
+    if (client == NULL) {
+        err_malloc((size_t)sizeof(client_t));
+        exit(EXIT_FAILURE);
+    }
+
     client->socketfd = fd;
     client->running = 1;
     client->name = NULL;
@@ -152,11 +164,12 @@ void *worker_loop(void *ptr) {
     while(OS_RUNNING && client->running) {
         //Start polling socket file descriptor
         int ev = poll(pollfds, 1, 10);    
-        if (ev < 0) err_select(client_socketfd);
+        if (ev < 0) err_poll(client_socketfd);
         if (ev == 1 && (pollfds[0].revents & POLLIN)) {
             size_t len = recv(client_socketfd, (char*)(buffer + msg_len), SO_READ_BUFFSIZE, 0);
             msg_len = msg_len + len;
 
+            //Check if we got ATLEAST an header, otherwise keep reading (recv)
             if (headercheck(buffer, msg_len)) {
                 os_msg_t *msg = worker_handlemsg(client_socketfd, (char*)buffer, msg_len);
 
@@ -180,6 +193,8 @@ void *worker_loop(void *ptr) {
 
     //Begin cleaning up worker thread
     worker_cleanup(client_socketfd, client);
-    pthread_detach(pthread_self());
+    int err = pthread_detach(pthread_self());
+    if (err != 0) err_pthread("pthread_detach");
+
     return NULL;
 }

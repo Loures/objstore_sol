@@ -1,5 +1,7 @@
 #ifndef OS_FS_H
 
+    ssize_t sendn(int sockfd, const void *buf, size_t len, int flags);
+    
     void fs_init();
     int fs_mkdir(client_t *client);
     int fs_write(int cfd, client_t *client, char *filename, size_t len, char *data, size_t datalen);

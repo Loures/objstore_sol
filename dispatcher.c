@@ -36,6 +36,8 @@ static void stats() {
     fprintf(stdout, "\nSTATS: Connected clients: %d\n", worker_num);
 
     //Do a file tree walk on the data folder and calculate size and number of files (i.e number of objects)
+	datadir_size = 0;
+	datadir_entries = 0;
     int err = ftw("data", &calc_stats, 64);
     if (err < 0) err_ftw("data");
 
@@ -58,30 +60,38 @@ void *dispatch(void *arg) {
     while(OS_RUNNING) {
         //Poll both the socket fd and the signal pipe fd
         int ev = poll(pollfds, 2, 10);    
-        if (ev < 0) err_select(os_serverfd);
+        if (ev < 0) err_poll(os_serverfd);
 
         //Check if we have a pending connection, accept only if the number of connected clients is < 500 to avoid breaking the fd limit
         if (ev == 1 && (pollfds[0].revents & POLLIN) && worker_num < maxclients / 2 - 64) {   
 
             //Accept connection
             int client_fd = accept(os_serverfd, NULL, NULL);
-            if (client_fd < 0) {
-                err_accept()
-            }
+            if (client_fd < 0) err_accept();
 
-            pthread_mutex_lock(&worker_num_mtx);
+            int err = pthread_mutex_lock(&worker_num_mtx);
+            if (err != 0) err_pthread("pthread_mutex_lock");
+
 
             worker_num++;   
 
-            pthread_mutex_unlock(&worker_num_mtx);
+            err = pthread_mutex_unlock(&worker_num_mtx);
+            if (err != 0) err_pthread("pthread_mutex_unlock");
+
 
             //Create a worker thread for the client
 
             int *ptr = (int*)malloc(sizeof(int));
+            if (ptr == NULL) {
+                err_malloc((size_t)sizeof(int));
+                exit(EXIT_FAILURE);
+            }
+        
             *ptr = client_fd;
 
             pthread_t wk;
-            pthread_create(&wk, NULL, &worker_loop, (void*)ptr);
+            err = pthread_create(&wk, NULL, &worker_loop, (void*)ptr);
+            if (err != 0) err_pthread("pthread_create");
             if (VERBOSE) fprintf(stderr, "OBJSTORE: Client connected on socket %d\n", client_fd);
         }
         
@@ -95,12 +105,18 @@ void *dispatch(void *arg) {
     }
 
     //Wait for all the worker threads to shutdown
-    pthread_mutex_lock(&worker_num_mtx);
+    int err = pthread_mutex_lock(&worker_num_mtx);
+    if (err != 0) err_pthread("pthread_mutex_lock");
 
-    while (worker_num > 0) pthread_cond_wait(&worker_num_cond, &worker_num_mtx);
+    while (worker_num > 0) {
+        err = pthread_cond_wait(&worker_num_cond, &worker_num_mtx);
+        if (err != 0) err_pthread("pthread_cond_wait");
+    }
     dispatcher_cleanup();
 
-    pthread_mutex_unlock(&worker_num_mtx);
-    
+    err = pthread_mutex_unlock(&worker_num_mtx);
+    if (err != 0) err_pthread("pthread_mutex_unlock");
+
+
     pthread_exit(NULL);
 }

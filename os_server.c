@@ -60,11 +60,11 @@ static void sighandler(int sig) {
 }
 
 int main(int argc, char *argv[]) {
-	int err = sigfillset(&nosignal);
-	if (err < 0) fprintf(stderr, "OBJSTORE: Error filling sigset\n");
+	sigfillset(&nosignal);
 	
 	//Block all signals;
-	pthread_sigmask(SIG_BLOCK, &nosignal, NULL);
+	int err = pthread_sigmask(SIG_BLOCK, &nosignal, NULL);
+	if (err < 0) err_sigmask();
 
 	//Running os_server -v prints lots of info about what's going on
 	VERBOSE = getopt(argc, argv, "v") > 0;
@@ -76,7 +76,8 @@ int main(int argc, char *argv[]) {
 
 	//Get size of kernel socket read buffer
 	ssize_t size = sizeof(size_t);
-	getsockopt(os_serverfd, SOL_SOCKET, SO_RCVBUF, (void*)&SO_READ_BUFFSIZE, (socklen_t*)&size);
+	err = getsockopt(os_serverfd, SOL_SOCKET, SO_RCVBUF, (void*)&SO_READ_BUFFSIZE, (socklen_t*)&size);
+	if (err < 0) err_getsockopt();
 
     if (VERBOSE) { 
         fprintf(stderr, "OBJSTORE: Server socket created with fd %d\n", os_serverfd); 
@@ -91,10 +92,11 @@ int main(int argc, char *argv[]) {
     
 	//There might be another os_server process running or we might still have a previous socket from a killed os_server process
 	struct stat sb;
-	if (stat(SOCKET_ADDR, &sb) == 0) {
+	err = stat(SOCKET_ADDR, &sb);
+	if (err > 0) {
 		fprintf(stderr, "OBJSTORE: Socket already exists. Terminating execution\n");
 		exit(EXIT_FAILURE);
-	}
+	} else if (errno != ENOENT) err_stat(SOCKET_ADDR);
 
 	//Bind the socket
 	err = bind(os_serverfd, (const struct sockaddr*)&socket_address, sizeof(socket_address));      
@@ -103,7 +105,8 @@ int main(int argc, char *argv[]) {
     if (VERBOSE) fprintf(stderr, "OBJSTORE: Server socket bound to %s\n", socket_address.sun_path); 
 
 	//Start listening for connections and keep a SOMAXCONN-sized backlog
-    listen(os_serverfd, SOMAXCONN);
+    err = listen(os_serverfd, SOMAXCONN);
+	if (err < 0) err_socket(os_serverfd);
 
 	//Init fs module (i.e create data folder)
 	fs_init();
@@ -116,8 +119,9 @@ int main(int argc, char *argv[]) {
 	err = pipe(os_signalfd);
 
 	//Create dispatcher thread
-	pthread_create(&dispatcher_thread, NULL, &dispatch, NULL);
-	
+	err = pthread_create(&dispatcher_thread, NULL, &dispatch, NULL);
+	if (err != 0) err_pthread("pthread_create");
+
 	//Wait for SIGINT, SIGTERM, SIGUSR1 and discard all the others
 	sigemptyset(&sigmask);
 	sigaddset(&sigmask, SIGINT);
@@ -128,7 +132,9 @@ int main(int argc, char *argv[]) {
 	sighandler(wait_sig);
 
 	//Wait for dispatcher thread to finish, this command gets executed only after a SIGINT or SIGTERM signal (see sigwait)
-	pthread_join(dispatcher_thread, NULL);
+	err = pthread_join(dispatcher_thread, NULL);
+	if (err != 0) err_pthread("pthread_join");
+
 
 	exit(EXIT_SUCCESS);
 

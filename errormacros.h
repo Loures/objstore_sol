@@ -45,7 +45,22 @@
 		strerror_r(errno, buf, 128); \
 	    fprintf(stderr, "Error removing file \'%s\': %s\n", filename, buf);}
 
-	#define err_select(fd) \
+	#define err_stat(filename) \
+		{char buf[128]; \
+		strerror_r(errno, buf, 128); \
+	    fprintf(stderr, "stat() error on file \'%s\': %s\n", filename, buf);}
+
+	#define err_sigmask() \
+		{char buf[128]; \
+		strerror_r(errno, buf, 128); \
+	    fprintf(stderr, "pthread_sigmask() error: %s\n", buf);}
+
+	#define err_getsockopt() \
+		{char buf[128]; \
+		strerror_r(errno, buf, 128); \
+	    fprintf(stderr, "getsockopt() error: %s\n", buf);}
+
+	#define err_poll(fd) \
 		{char buf[128]; \
 		strerror_r(errno, buf, 128); \
 	    fprintf(stderr, "Error polling fd %d: %s\n", fd, buf);}
@@ -53,12 +68,18 @@
 	#define err_accept() \
 		{char buf[128]; \
 		strerror_r(errno, buf, 128); \
-	    fprintf(stderr, "accept() Error: %s\n", buf);}
+	    fprintf(stderr, "accept() error: %s\n", buf);}
 
 	#define err_ftw(filename) \
 		{char buf[128]; \
 		strerror_r(errno, buf, 128); \
-	    fprintf(stderr, "ftw() Error on \'%s\' folder: %s\n", filename, buf);}
+	    fprintf(stderr, "ftw() error on \'%s\' folder: %s\n", filename, buf);}
+
+	#define err_pthread(name) \
+		{char buf[128]; \
+		strerror_r(errno, buf, 128); \
+	    fprintf(stderr, "%s() error: %s\n", name, buf); \
+		exit(EXIT_FAILURE);}
 
 
 	#define OS_ERROR_MACROS_H
