@@ -12,4 +12,6 @@ typedef struct os_msg_t {
 	char *data;
 } os_msg_t;
 
-extern int os_client_commandhandler(int fd, client_t *client, os_msg_t *msg);
+extern int os_client_commandhandler(int fd, char *name, os_msg_t *msg);
+
+extern int unlink_lockfile(const char *name);

@@ -49,6 +49,11 @@
 		{char buf[128]; \
 		strerror_r(errno, buf, 128); \
 	    fprintf(stderr, "Error polling fd %d: %s\n", fd, buf);}
+
+	#define err_pipe() \
+		{char buf[128]; \
+		strerror_r(errno, buf, 128); \
+	    fprintf(stderr, "Error creating pipe: %s\n", buf);}
 	
 	#define err_accept() \
 		{char buf[128]; \

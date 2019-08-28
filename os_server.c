@@ -7,7 +7,7 @@
 #include <fs.h>
 
 sigset_t nosignal;
-ht_t *client_list = NULL;
+//ht_t *client_list = NULL;
 
 size_t SO_READ_BUFFSIZE = 0;  
 
@@ -113,17 +113,19 @@ int main(int argc, char *argv[]) {
     if (VERBOSE) fprintf(stderr, "OBJSTORE: Server socket bound to %s\n", socket_address.sun_path); 
 
 	//Start listening for connections and keep a SOMAXCONN-sized backlog
-    listen(os_serverfd, SOMAXCONN);
+    err = listen(os_serverfd, SOMAXCONN);
+	if (err < 0) err_socket(os_serverfd);
 
 	//Init fs module (i.e create data folder)
 	fs_init();
 
 	//Init client_list
-	client_list = (ht_t*)calloc(1, sizeof(ht_t));
-	myhash_init(client_list, HASHTABLE_SIZE, HASHTABLE_LOCKS);
+	//client_list = (ht_t*)calloc(1, sizeof(ht_t));
+	//myhash_init(client_list, HASHTABLE_SIZE, HASHTABLE_LOCKS);
 	
 	//Create pipe for self-pipe trick
 	err = pipe(os_signalfd);
+	if (err < 0) err_pipe();
 
 	//Create dispatcher thread
 	pthread_create(&dispatcher_thread, NULL, &dispatch, NULL);

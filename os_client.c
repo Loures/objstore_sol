@@ -6,6 +6,34 @@
 
 const char *ok = "OK \n";
 
+static int create_lockfile(const char *name) {
+    char buff[512];
+    memset(buff, 0, 512);
+    sprintf(buff, "data/%s/.lock", name);
+    int fd = open(buff, O_CREAT | O_EXCL);
+    if (fd < 0 && errno != EEXIST) {
+        err_open(buff);
+        return 0;
+    }
+    if (fd > 0) {
+        int err = close(fd);
+        if (err < 0) err_close(fd);
+    }
+    return fd > 0;
+}
+
+int unlink_lockfile(const char *name) {
+    char buff[512];
+    memset(buff, 0, 512);
+    sprintf(buff, "data/%s/.lock", name);
+    int err = unlink(buff);
+    if (err < 0) {
+        err_unlink(buff);
+        return 0;
+    }
+    return err >= 0;
+}
+
 //Convert command string to int
 static int getcommand(os_msg_t *msg) {
     if (msg->cmd) {
@@ -38,43 +66,45 @@ static void send_ko(int fd, const char *msg) {
 
 }
 
-static int namecompare(const void *ptr, void *arg) {
-    client_t *client = (client_t*)ptr;
-    char *name = (char*)arg;
-    if (client->name) return strcmp(client->name, name) == 0;
-    return 0;
-}
+//static int namecompare(const void *ptr, void *arg) {
+//    client_t *client = (client_t*)ptr;
+//    char *name = (char*)arg;
+//    if (client->name) return strcmp(client->name, name) == 0;
+//    return 0;
+//}
 
-static client_t *os_client_handleregistration(int fd, client_t *client, char *name) {
-    client->socketfd = fd;
-    client->running = 1;
+static int os_client_handleregistration(int fd, char *name, char *clientname) {
+    //client->socketfd = fd;
+    //client->running = 1;
+    fs_mkdir(clientname);
 
-    client_t *dup = (client_t*)myhash_search(client_list, HASHTABLE_SIZE, name, &namecompare, name);
-    if (dup) {
+    //client_t *dup = (client_t*)myhash_search(client_list, HASHTABLE_SIZE, name, &namecompare, name);
+    if (!create_lockfile(clientname)) {
         send_ko(fd, "Username already registered");
-        client->running = 0;
-		return NULL;
+        //client->running = 0;
+		return 1;
     }
 
-    client->name = (char*)calloc(strlen(name) + 1, sizeof(char));
-    strcpy(client->name, name);
+    strncpy(name, clientname, 255);
+
+    //client->name = (char*)calloc(strlen(name) + 1, sizeof(char));
+    //strcpy(client->name, name);
 
     
-    myhash_insert(client_list, HASHTABLE_SIZE, client->name, client);
-    fs_mkdir(client);
+    //myhash_insert(client_list, HASHTABLE_SIZE, client->name, client);
 
 
     send_ok(fd);
 
     if (VERBOSE) fprintf(stderr, "OBJSTORE: Client on fd %d registered as \'%s\'\n", fd, name);
-    return client;
+    return 0;
 }
 
 //LEAVE handler
-static void os_client_handleleave(int fd, client_t *client) {
+static int os_client_handleleave(int fd, const char *name) {
     
     if (VERBOSE) {
-        char *name = client->name;
+        //char *name = client->name;
         fprintf(stderr, "OBJSTORE: Client on fd %d (%s) left\n", fd, name);
 		
     }
@@ -82,12 +112,12 @@ static void os_client_handleleave(int fd, client_t *client) {
 	send_ok(fd);
 
     //Stop the client's worker thread
-    client->running = 0;
+    return 1;
 }
 
 //RETRIEVE handler
-static void os_client_handleretrieve(int fd, client_t *client, char *filename) {
-    if (!fs_read(fd, client, filename)) {
+static void os_client_handleretrieve(int fd, const char *name, char *filename) {
+    if (!fs_read(fd, name, filename)) {
         char buf[128];
         strerror_r(errno, buf, 128);
         send_ko(fd, buf);
@@ -95,8 +125,8 @@ static void os_client_handleretrieve(int fd, client_t *client, char *filename) {
 }
 
 //DELETE handler
-static void os_client_handledelete(int fd, client_t *client, char *filename) {
-    int err = fs_delete(client, filename);
+static void os_client_handledelete(int fd, const char *name, char *filename) {
+    int err = fs_delete(name, filename);
     if (err == 0) {
         char buf[128];
         strerror_r(errno, buf, 128);
@@ -105,8 +135,8 @@ static void os_client_handledelete(int fd, client_t *client, char *filename) {
 }
 
 //STORE handler
-static void os_client_handlestore(int fd, client_t *client, char *filename, char *data, size_t len, size_t datalen) {
-    int err = fs_write(fd, client, filename, len, data, datalen);
+static void os_client_handlestore(int fd, const char *name, char *filename, char *data, size_t len, size_t datalen) {
+    int err = fs_write(fd, name, filename, len, data, datalen);
     if (err == 0) {
         char buf[128];
         strerror_r(errno, buf, 128);
@@ -114,25 +144,24 @@ static void os_client_handlestore(int fd, client_t *client, char *filename, char
     } else send_ok(fd);
 }
 
-int os_client_commandhandler(int fd, client_t *client, os_msg_t *msg) {
+int os_client_commandhandler(int fd, char *name, os_msg_t *msg) {
     int cmd_num = getcommand(msg);
         switch (cmd_num) {
             case OS_CLIENT_REGISTER: 
-                os_client_handleregistration(fd, client, msg->name);
+                return os_client_handleregistration(fd, name, msg->name);
                 break;
             case OS_CLIENT_STORE: 
-                os_client_handlestore(fd, client, msg->name, msg->data, msg->len, msg->datalen);
+                os_client_handlestore(fd, name, msg->name, msg->data, msg->len, msg->datalen);
                 return 0;
                 break;
             case OS_CLIENT_RETRIEVE: 
-                os_client_handleretrieve(fd, client, msg->name);
+                os_client_handleretrieve(fd, name, msg->name);
                 break;
             case OS_CLIENT_DELETE:
-                os_client_handledelete(fd, client, msg->name);
+                os_client_handledelete(fd, name, msg->name);
                 break;
             case OS_CLIENT_LEAVE: 
-                os_client_handleleave(fd, client);
-                return 0;
+                return os_client_handleleave(fd, name);
                 break;
 
             default:

@@ -16,19 +16,19 @@ void fs_init() {
 }
 
 //Make the client's data folder
-int fs_mkdir(client_t *client) {
+int fs_mkdir(const char *name) {
     //+2 to account for slash and null terminator
-    char path[strlen(DATA_PATH) + strlen(client->name) + 2];     
-    sprintf(path, "%s/%s", DATA_PATH, client->name);
+    char path[strlen(DATA_PATH) + strlen(name) + 2];     
+    sprintf(path, "%s/%s", DATA_PATH, name);
     int err = mkdir(path, S_IRWXU | S_IRGRP | S_IROTH);    //rwxr--r--
     if (err < 0 && errno != EEXIST) err_mkdir(path);
     return 1;
 }
 
-int fs_write(int cfd, client_t *client, char *filename, size_t len, char *data, size_t datalen) {
+int fs_write(int cfd, const char *name, char *filename, size_t len, char *data, size_t datalen) {
     //+3 to account for slash and null terminator
-    char path[strlen(DATA_PATH) + strlen(client->name) + strlen(filename) + 3];
-    sprintf(path, "%s/%s/%s", DATA_PATH, client->name, filename);
+    char path[strlen(DATA_PATH) + strlen(name) + strlen(filename) + 3];
+    sprintf(path, "%s/%s/%s", DATA_PATH, name, filename);
 
     //Remove previous filename file
     int err = unlink(path);
@@ -75,10 +75,10 @@ int fs_write(int cfd, client_t *client, char *filename, size_t len, char *data, 
     return 1;
 }
 
-int fs_delete(client_t *client, char *filename) {
+int fs_delete(const char *name, char *filename) {
     //+3 to account for slashes and null terminator
-    char path[strlen(DATA_PATH) + strlen(client->name) + strlen(filename) + 3];
-    sprintf(path, "%s/%s/%s", DATA_PATH, client->name, filename);
+    char path[strlen(DATA_PATH) + strlen(name) + strlen(filename) + 3];
+    sprintf(path, "%s/%s/%s", DATA_PATH, name, filename);
 
     //Delete filename from client's data folder
     int err = unlink(path);
@@ -91,10 +91,10 @@ int fs_delete(client_t *client, char *filename) {
     return 1;
 }
 
-int fs_read(int cfd, client_t *client, char *filename) {
+int fs_read(int cfd, const char *name, char *filename) {
     //+3 to account for slashes and null terminator
-    char path[strlen(DATA_PATH) + strlen(client->name) + strlen(filename) + 3];
-    sprintf(path, "%s/%s/%s", DATA_PATH, client->name, filename);
+    char path[strlen(DATA_PATH) + strlen(name) + strlen(filename) + 3];
+    sprintf(path, "%s/%s/%s", DATA_PATH, name, filename);
 
     int fd = open(path, O_RDONLY);
     if (fd < 0) {

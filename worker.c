@@ -3,32 +3,38 @@
 #include <sys/socket.h>
 #include <os_client.h>
 
-static int comp(const void *ptr, void *arg) {
-    client_t *client = (client_t*)ptr;
-    char *name = arg;
-    if (strcmp(client->name, name) == 0) {
-        free(client->name);
-        client->name = NULL;
-        free(client);
-        client = NULL;
-        return 1;
-    }
-    return 0;
-}
+//static int comp(const void *ptr, void *arg) {
+//    client_t *client = (client_t*)ptr;
+//    char *name = arg;
+//    if (strcmp(client->name, name) == 0) {
+//        free(client->name);
+//        client->name = NULL;
+//        free(client);
+//        client = NULL;
+//        return 1;
+//    }
+//    return 0;
+//}
 
-void worker_cleanup(int fd, client_t *client) {
+void worker_cleanup(int fd, char *name) {
     if (VERBOSE) {
-        if (client->name) fprintf(stderr, "OBJSTORE: Cleaned up client \'%s\' worker thread\n", client->name);
+        if (strlen(name) > 0) fprintf(stderr, "OBJSTORE: Cleaned up client \'%s\' worker thread\n", name);
         else fprintf(stderr, "OBJSTORE: Cleaned up unregistered client (fd %d) worker thread\n", fd);
     }
 
     //Dealloc client struct, remove from client list and close fd, if client doesn't have a name, just free it.
-    if (client->name) myhash_delete(client_list, HASHTABLE_SIZE, client->name, &comp, client->name);
-    else {
-        free(client);
-        client = NULL;
+    //if (client->name) myhash_delete(client_list, HASHTABLE_SIZE, client->name, &comp, client->name);
+    //else {
+    //    free(client);
+    //    client = NULL;
+    //}
+    if (strlen(name) > 0) {
+        unlink_lockfile(name);
+        int err = close(fd);
+        if (err < 0) err_close(fd);
     }
-    close(fd);
+    free(name);
+    name = NULL;
 
     //We are done with this client, decrease number of worker threads
     pthread_mutex_lock(&worker_num_mtx);
@@ -111,14 +117,14 @@ os_msg_t *worker_handlemsg(int fd, char *buff, size_t buffsize) {
     }    
 }
 
-static client_t *initclient(int fd) {
-    client_t *client = (client_t*)calloc(1, sizeof(client_t));
-    client->socketfd = fd;
-    client->running = 1;
-    client->name = NULL;
-    client->worker = pthread_self();
-    return client;
-}
+//static client_t *initclient(int fd) {
+//    client_t *client = (client_t*)calloc(1, sizeof(client_t));
+//    client->socketfd = fd;
+//    client->running = 1;
+//    client->name = NULL;
+//    client->worker = pthread_self();
+//    return client;
+//}
 
 static int headercheck(char *buff, size_t len) {
     //5 is the length of the shortest command
@@ -142,14 +148,21 @@ void *worker_loop(void *ptr) {
     char buffer[SO_READ_BUFFSIZE];
     memset(buffer, 0, SO_READ_BUFFSIZE); 
 
-    client_t *client = initclient(client_socketfd);
+    //client_t *client = initclient(client_socketfd);
 
     size_t msg_len = 0;
+    int disconnect = 0;
+
+    char *name = (char*)calloc(512, sizeof(char));
+    if (!name) {
+        err_malloc((long)512);
+        return NULL;
+    }
 
     struct pollfd pollfds[1];
     pollfds[0] = (struct pollfd){client_socketfd, POLLIN, 0};
 
-    while(OS_RUNNING && client->running) {
+    while(OS_RUNNING && !disconnect) {
         //Start polling socket file descriptor
         int ev = poll(pollfds, 1, 10);    
         if (ev < 0) err_select(client_socketfd);
@@ -163,7 +176,7 @@ void *worker_loop(void *ptr) {
 
                 //Begin handling message
                 if (msg->cmd) {
-                    os_client_commandhandler(client_socketfd, client, msg);
+                    disconnect = os_client_commandhandler(client_socketfd, name, msg);
                 }
 
                 //...then free it
@@ -180,7 +193,7 @@ void *worker_loop(void *ptr) {
     }
 
     //Begin cleaning up worker thread
-    worker_cleanup(client_socketfd, client);
+    worker_cleanup(client_socketfd, name);
     pthread_detach(pthread_self());
     return NULL;
 }
